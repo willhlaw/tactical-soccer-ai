@@ -296,16 +296,12 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
         onPointerDown={(e) => handlePointerDown(e, undefined, true)}
         style={{ left: `${animatedBallX}%`, top: `${animatedBallY}%` }}
         className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing z-40 transition-transform duration-75 ${
-          isDraggingBall ? 'scale-125 ring-4 ring-amber-400' : 'hover:scale-125'
+          isDraggingBall ? 'scale-125 ring-4 ring-amber-400 rounded-full' : 'hover:scale-125'
         }`}
+        title="Soccer Ball (Draggable)"
       >
-        <div className="relative flex flex-col items-center group">
-          <div className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-white text-slate-950 flex items-center justify-center text-lg md:text-xl shadow-2xl border-2 border-slate-950 ring-2 ring-amber-400">
-            ⚽
-          </div>
-          <div className="mt-0.5 px-1.5 py-0.5 bg-amber-500 text-slate-950 font-black text-[9px] rounded shadow uppercase tracking-wider">
-            BALL
-          </div>
+        <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-white text-slate-950 flex items-center justify-center text-lg md:text-2xl shadow-2xl border-2 border-slate-950 ring-2 ring-amber-400">
+          ⚽
         </div>
       </div>
     </div>
