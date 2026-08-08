@@ -186,7 +186,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateFormat
 
           {/* Fullscreen Overlay Bar when in Maximum Mode */}
           {isFullscreen && (
-            <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 glass-panel p-4 rounded-3xl flex items-center space-x-4 border-2 border-emerald-400/40 shadow-2xl backdrop-blur-xl">
+            <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[110] glass-panel p-4 rounded-3xl flex items-center space-x-4 border-2 border-emerald-400/40 shadow-2xl backdrop-blur-xl">
               <button
                 onClick={() => setIsPlayingAnimation(!isPlayingAnimation)}
                 className={`w-14 h-14 rounded-full flex items-center justify-center font-bold transition-all shadow-xl ${
