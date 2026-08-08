@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { PitchCanvas } from './PitchCanvas';
 import { Team, PitchNode, TacticalArrow, FormationPreset } from '../../types';
 import { FORMATION_PRESETS, getFormationsForFormat } from '../../services/formations';
@@ -28,8 +28,11 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateFormat
     }));
   });
 
-  // Interactive Soccer Ball state ⚽
+  // Interactive Soccer Ball state ⚽ (Defaults exact center circle)
   const [ballPos, setBallPos] = useState<{ x: number; y: number }>({ x: 50, y: 50 });
+
+  // Clean canvas default (no initial lines)
+  const [arrows, setArrows] = useState<TacticalArrow[]>([]);
 
   // Opposition Team nodes state (Red team)
   const [showOpposition, setShowOpposition] = useState<boolean>(false);
@@ -43,15 +46,28 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateFormat
     { id: 'away-7', label: 'A7', role: 'ST', x: 50, y: 75, team: 'away' },
   ]);
 
-  const [arrows, setArrows] = useState<TacticalArrow[]>([
-    { id: 'a1', startX: 50, startY: 88, endX: 75, endY: 72, type: 'pass' },
-    { id: 'a2', startX: 75, startY: 72, endX: 50, endY: 48, type: 'run' }
-  ]);
-
   const [isDrawingArrow, setIsDrawingArrow] = useState(false);
   const [arrowType, setArrowType] = useState<'pass' | 'run' | 'dribble' | 'shot'>('pass');
   const [isPlayingAnimation, setIsPlayingAnimation] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Dynamic reaction when 5v5 / 7v7 / 9v9 / 11v11 format changes in header
+  useEffect(() => {
+    const available = getFormationsForFormat(team.format);
+    const defaultFormation = available[0] || FORMATION_PRESETS[2];
+    setSelectedFormation(defaultFormation);
+    setNodes(defaultFormation.nodes.map((n, i) => ({
+      id: 'node-' + i,
+      label: n.label,
+      role: n.role,
+      x: n.x,
+      y: n.y,
+      assignedPlayerId: team.roster[i]?.id,
+      team: 'home'
+    })));
+    setIsPlayingAnimation(false);
+    setBallPos({ x: 50, y: 50 });
+  }, [team.format, team.roster]);
 
   const playersMap = React.useMemo(() => {
     const map: Record<string, any> = {};
@@ -85,9 +101,10 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateFormat
     setArrows(prev => [...prev, arrow]);
   };
 
-  const handleResetPositions = () => {
+  const handleResetBoard = () => {
     setIsPlayingAnimation(false);
     setBallPos({ x: 50, y: 50 });
+    setArrows([]);
     setNodes(selectedFormation.nodes.map((n, i) => ({
       id: 'node-' + i,
       label: n.label,
@@ -208,8 +225,9 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateFormat
               </button>
 
               <button
-                onClick={handleResetPositions}
+                onClick={handleResetBoard}
                 className="w-12 h-12 rounded-full bg-slate-900 text-slate-300 border border-slate-700 flex items-center justify-center"
+                title="Reset Board & Ball"
               >
                 <RotateCcw className="w-5 h-5" />
               </button>
@@ -217,6 +235,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateFormat
               <button
                 onClick={handleClearLines}
                 className="w-12 h-12 rounded-full bg-slate-900 text-slate-300 border border-slate-700 flex items-center justify-center"
+                title="Clear Lines"
               >
                 <Trash2 className="w-5 h-5" />
               </button>
@@ -279,9 +298,9 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateFormat
                 </button>
 
                 <button
-                  onClick={handleResetPositions}
+                  onClick={handleResetBoard}
                   className="w-12 h-12 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 flex items-center justify-center transition shadow-md"
-                  title="Reset Player & Ball Positions to Formation"
+                  title="Reset Board & Soccer Ball to Center"
                 >
                   <RotateCcw className="w-5 h-5" />
                 </button>
@@ -326,7 +345,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateFormat
                   <div key={n.id} className="p-2 bg-slate-900/60 rounded-lg border border-slate-800/80 flex items-center justify-between text-xs">
                     <span className="font-bold text-slate-300">{n.role} ({n.label}):</span>
                     <span className="text-emerald-400 font-medium">
-                      {player ? `#${player.number} ${player.name}` : 'Unassigned'}
+                      {player ? `#${Number(player.number)} ${player.name}` : 'Unassigned'}
                     </span>
                   </div>
                 );
