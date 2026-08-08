@@ -11,6 +11,12 @@ interface PitchCanvasProps {
   onAddArrow?: (arrow: TacticalArrow) => void;
   isPlayingAnimation?: boolean;
   isFullscreen?: boolean;
+
+  // Ball & Opposition props
+  ballPos?: { x: number; y: number };
+  onBallMove?: (x: number, y: number) => void;
+  awayNodes?: PitchNode[];
+  onAwayNodeMove?: (nodeId: string, newX: number, newY: number) => void;
 }
 
 export const PitchCanvas: React.FC<PitchCanvasProps> = ({
@@ -22,10 +28,15 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
   arrowType = 'pass',
   onAddArrow,
   isPlayingAnimation = false,
-  isFullscreen = false
+  isFullscreen = false,
+  ballPos = { x: 50, y: 50 },
+  onBallMove,
+  awayNodes = [],
+  onAwayNodeMove
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
+  const [isDraggingBall, setIsDraggingBall] = useState<boolean>(false);
   const [drawingStart, setDrawingStart] = useState<{ x: number; y: number } | null>(null);
   const [currentMousePos, setCurrentMousePos] = useState<{ x: number; y: number } | null>(null);
   
@@ -45,14 +56,12 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
         const delta = timestamp - lastTime;
         lastTime = timestamp;
 
-        // Advance progress from where it was paused
         animProgressRef.current = (animProgressRef.current + delta * SPEED) % 1.0;
         setAnimProgress(animProgressRef.current);
         animFrame = requestAnimationFrame(animate);
       };
       animFrame = requestAnimationFrame(animate);
     } else {
-      // Pause holds current frame exactly where it stopped
       lastTime = null;
     }
 
@@ -61,16 +70,19 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
     };
   }, [isPlayingAnimation]);
 
-  const handlePointerDown = (e: React.PointerEvent, node?: PitchNode) => {
+  const handlePointerDown = (e: React.PointerEvent, node?: PitchNode, isBall = false) => {
     if (!containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
 
-    if (isDrawingArrow) {
+    if (isBall && onBallMove) {
+      setIsDraggingBall(true);
+      e.stopPropagation();
+    } else if (isDrawingArrow) {
       setDrawingStart({ x, y });
       setCurrentMousePos({ x, y });
-    } else if (node && onNodeMove) {
+    } else if (node) {
       setDraggedNodeId(node.id);
       e.stopPropagation();
     }
@@ -82,8 +94,15 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
     const x = Math.max(2, Math.min(98, ((e.clientX - rect.left) / rect.width) * 100));
     const y = Math.max(2, Math.min(98, ((e.clientY - rect.top) / rect.height) * 100));
 
-    if (draggedNodeId && onNodeMove) {
-      onNodeMove(draggedNodeId, x, y);
+    if (isDraggingBall && onBallMove) {
+      onBallMove(x, y);
+    } else if (draggedNodeId) {
+      const isAway = awayNodes.some(n => n.id === draggedNodeId);
+      if (isAway && onAwayNodeMove) {
+        onAwayNodeMove(draggedNodeId, x, y);
+      } else if (onNodeMove) {
+        onNodeMove(draggedNodeId, x, y);
+      }
     } else if (drawingStart) {
       setCurrentMousePos({ x, y });
     }
@@ -101,9 +120,22 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
       });
     }
     setDraggedNodeId(null);
+    setIsDraggingBall(false);
     setDrawingStart(null);
     setCurrentMousePos(null);
   };
+
+  // Animate Ball along Pass/Shot Arrow if animation is active
+  let animatedBallX = ballPos.x;
+  let animatedBallY = ballPos.y;
+
+  if (isPlayingAnimation && animProgress > 0 && arrows.length > 0) {
+    const passArrow = arrows.find(a => a.type === 'pass' || a.type === 'shot') || arrows[0];
+    if (passArrow) {
+      animatedBallX = passArrow.startX + (passArrow.endX - passArrow.startX) * animProgress;
+      animatedBallY = passArrow.startY + (passArrow.endY - passArrow.startY) * animProgress;
+    }
+  }
 
   return (
     <div
@@ -163,7 +195,6 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
                 strokeLinecap="round"
                 opacity={isPlayingAnimation ? 0.4 : 1}
               />
-              {/* Arrow Head */}
               <circle cx={`${arrow.endX}%`} cy={`${arrow.endY}%`} r="6" fill={stroke} opacity={isPlayingAnimation ? 0.5 : 1} />
             </g>
           );
@@ -183,12 +214,35 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
         )}
       </svg>
 
-      {/* Players / Nodes Layer */}
+      {/* Opposition Nodes Layer (Away Team - Red) */}
+      {awayNodes.map(node => {
+        const isSelected = draggedNodeId === node.id;
+        return (
+          <div
+            key={node.id}
+            onPointerDown={(e) => handlePointerDown(e, node)}
+            style={{ left: `${node.x}%`, top: `${node.y}%` }}
+            className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing transition-transform duration-75 ${
+              isSelected ? 'scale-125 z-30' : 'z-20 hover:scale-110'
+            }`}
+          >
+            <div className="relative group flex flex-col items-center">
+              <div className="w-9 h-9 md:w-11 md:h-11 rounded-full bg-red-600 border-2 border-white shadow-xl flex items-center justify-center font-bold text-white text-xs ring-4 ring-red-950/40">
+                {node.label}
+              </div>
+              <div className="mt-1 px-1.5 py-0.5 bg-red-950/90 text-red-200 text-[9px] md:text-[10px] rounded font-semibold whitespace-nowrap border border-red-500/30">
+                AWAY ({node.role})
+              </div>
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Home Players / Nodes Layer */}
       {nodes.map(node => {
         const player = node.assignedPlayerId ? playersMap[node.assignedPlayerId] : null;
         const isSelected = draggedNodeId === node.id;
 
-        // Find matching arrow starting near this node for animation
         let currentX = node.x;
         let currentY = node.y;
 
@@ -219,7 +273,6 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
               isSelected ? 'scale-125 z-30' : 'z-20 hover:scale-110'
             }`}
           >
-            {/* Player Marker Badge */}
             <div className="relative group flex flex-col items-center">
               <div
                 style={{ backgroundColor: player?.avatarColor || (node.role === 'GK' ? '#fbbf24' : '#10b981') }}
@@ -230,7 +283,6 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
                 {player ? `#${player.number}` : node.label}
               </div>
 
-              {/* Player Name / Role Tag */}
               <div className="mt-1 px-2 py-0.5 bg-slate-950/85 backdrop-blur text-white text-[10px] md:text-xs rounded font-medium shadow whitespace-nowrap border border-white/10">
                 {player ? player.name.split(' ')[0] : node.label} ({node.role})
               </div>
@@ -238,6 +290,24 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
           </div>
         );
       })}
+
+      {/* Interactive Soccer Ball Node ⚽ */}
+      <div
+        onPointerDown={(e) => handlePointerDown(e, undefined, true)}
+        style={{ left: `${animatedBallX}%`, top: `${animatedBallY}%` }}
+        className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing z-40 transition-transform duration-75 ${
+          isDraggingBall ? 'scale-125 ring-4 ring-amber-400' : 'hover:scale-125'
+        }`}
+      >
+        <div className="relative flex flex-col items-center group">
+          <div className="w-8 h-8 md:w-9 md:h-9 rounded-full bg-white text-slate-950 flex items-center justify-center text-lg md:text-xl shadow-2xl border-2 border-slate-950 ring-2 ring-amber-400">
+            ⚽
+          </div>
+          <div className="mt-0.5 px-1.5 py-0.5 bg-amber-500 text-slate-950 font-black text-[9px] rounded shadow uppercase tracking-wider">
+            BALL
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
