@@ -1,0 +1,17 @@
+{
+  "short_name": "TacticalSoccer",
+  "name": "TacticalSoccer AI - Team & Tactics Manager",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "512x512 192x192 64x64 32x32"
+    }
+  ],
+  "start_url": "./index.html",
+  "background_color": "#0b132b",
+  "theme_color": "#10b981",
+  "display": "standalone",
+  "orientation": "any",
+  "description": "Offline PWA for soccer coaches: tactics board, fair-play/competitive lineup generator, Coach Rory AI assistant, and parent sharing."
+}
