@@ -41,6 +41,7 @@ export interface Team {
   format: FormatType;
   playingStyle: PlayingStyle;
   customStyleNotes?: string;
+  preferredFormationId?: string;
   roster: Player[];
 }
 

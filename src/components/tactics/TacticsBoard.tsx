@@ -2,18 +2,30 @@ import React, { useState, useEffect } from 'react';
 import { PitchCanvas } from './PitchCanvas';
 import { Team, PitchNode, TacticalArrow, FormationPreset } from '../../types';
 import { FORMATION_PRESETS, getFormationsForFormat } from '../../services/formations';
-import { Play, Pause, RotateCcw, Trash2, Shield, Zap, Maximize2, Minimize2, PenTool, Users } from 'lucide-react';
+import { Play, Pause, RotateCcw, Trash2, Shield, Zap, Maximize2, Minimize2, PenTool, Users, Star } from 'lucide-react';
 
 interface TacticsBoardProps {
   team: Team;
+  onUpdateTeam?: (updatedTeam: Team) => void;
   onUpdateFormation?: (formation: FormationPreset) => void;
 }
 
-export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateFormation }) => {
+export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, onUpdateFormation }) => {
   const availableFormations = getFormationsForFormat(team.format);
-  const [selectedFormation, setSelectedFormation] = useState<FormationPreset>(
-    availableFormations[0] || FORMATION_PRESETS[2]
-  );
+
+  // Load last selected formation or team preferred formation
+  const [selectedFormation, setSelectedFormation] = useState<FormationPreset>(() => {
+    if (team.preferredFormationId) {
+      const preferred = availableFormations.find(f => f.id === team.preferredFormationId);
+      if (preferred) return preferred;
+    }
+    const savedId = localStorage.getItem(`tactical_last_formation_${team.id}_${team.format}`);
+    if (savedId) {
+      const found = availableFormations.find(f => f.id === savedId);
+      if (found) return found;
+    }
+    return availableFormations[0] || FORMATION_PRESETS[4];
+  });
 
   // Initialize home pitch nodes
   const [nodes, setNodes] = useState<PitchNode[]>(() => {
@@ -54,9 +66,21 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateFormat
   // Dynamic reaction when 5v5 / 7v7 / 9v9 / 11v11 format changes in header
   useEffect(() => {
     const available = getFormationsForFormat(team.format);
-    const defaultFormation = available[0] || FORMATION_PRESETS[2];
-    setSelectedFormation(defaultFormation);
-    setNodes(defaultFormation.nodes.map((n, i) => ({
+    let targetFormation = available[0] || FORMATION_PRESETS[4];
+
+    if (team.preferredFormationId) {
+      const pref = available.find(f => f.id === team.preferredFormationId);
+      if (pref) targetFormation = pref;
+    } else {
+      const savedId = localStorage.getItem(`tactical_last_formation_${team.id}_${team.format}`);
+      if (savedId) {
+        const found = available.find(f => f.id === savedId);
+        if (found) targetFormation = found;
+      }
+    }
+
+    setSelectedFormation(targetFormation);
+    setNodes(targetFormation.nodes.map((n, i) => ({
       id: 'node-' + i,
       label: n.label,
       role: n.role,
@@ -67,7 +91,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateFormat
     })));
     setIsPlayingAnimation(false);
     setBallPos({ x: 50, y: 50 });
-  }, [team.format, team.roster]);
+  }, [team.format, team.roster, team.id, team.preferredFormationId]);
 
   const playersMap = React.useMemo(() => {
     const map: Record<string, any> = {};
@@ -77,6 +101,8 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateFormat
 
   const handleSelectFormation = (f: FormationPreset) => {
     setSelectedFormation(f);
+    localStorage.setItem(`tactical_last_formation_${team.id}_${team.format}`, f.id);
+
     setNodes(f.nodes.map((n, i) => ({
       id: 'node-' + i,
       label: n.label,
@@ -87,6 +113,15 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateFormat
       team: 'home'
     })));
     if (onUpdateFormation) onUpdateFormation(f);
+  };
+
+  const handleSetTeamPreferredFormation = () => {
+    if (onUpdateTeam) {
+      onUpdateTeam({
+        ...team,
+        preferredFormationId: selectedFormation.id
+      });
+    }
   };
 
   const handleNodeMove = (id: string, newX: number, newY: number) => {
@@ -120,6 +155,8 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateFormat
     setArrows([]);
   };
 
+  const isCurrentPreferred = team.preferredFormationId === selectedFormation.id;
+
   return (
     <div className="space-y-6">
       {/* Top Bar: Controls & Formation Selector */}
@@ -131,9 +168,9 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateFormat
           <div>
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
               Tactics Board ({team.format})
-              {team.playingStyle === 'youth-buildout' && (
-                <span className="px-2.5 py-0.5 bg-amber-500/20 text-amber-300 text-xs rounded-full border border-amber-500/30 font-medium">
-                  Youth Build-Out Style
+              {isCurrentPreferred && (
+                <span className="px-2.5 py-0.5 bg-amber-500/20 text-amber-300 text-xs rounded-full border border-amber-500/30 font-medium flex items-center gap-1">
+                  <Star className="w-3 h-3 fill-current" /> Team Preferred Shape
                 </span>
               )}
             </h2>
@@ -141,7 +178,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateFormat
           </div>
         </div>
 
-        {/* Formation Dropdown & Fullscreen Toggle */}
+        {/* Formation Dropdown & Lock Preferred Button */}
         <div className="flex items-center space-x-3">
           <button
             onClick={() => setShowOpposition(!showOpposition)}
@@ -163,12 +200,30 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateFormat
                 const found = availableFormations.find(f => f.id === e.target.value);
                 if (found) handleSelectFormation(found);
               }}
-              className="bg-slate-900 text-white text-sm px-3 py-2 rounded-xl border border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="bg-slate-900 text-white text-sm px-3 py-2 rounded-xl border border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-semibold"
             >
               {availableFormations.map(f => (
-                <option key={f.id} value={f.id}>{f.name}</option>
+                <option key={f.id} value={f.id}>
+                  {f.id === team.preferredFormationId ? `⭐ ${f.name}` : f.name}
+                </option>
               ))}
             </select>
+
+            {onUpdateTeam && (
+              <button
+                onClick={handleSetTeamPreferredFormation}
+                disabled={isCurrentPreferred}
+                className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border ${
+                  isCurrentPreferred
+                    ? 'bg-amber-500/20 text-amber-300 border-amber-500/30 cursor-default'
+                    : 'bg-slate-900 hover:bg-slate-800 text-slate-300 border-slate-700 hover:text-white'
+                }`}
+                title="Lock in as Team Official Preferred Formation for all users"
+              >
+                <Star className={`w-3.5 h-3.5 ${isCurrentPreferred ? 'fill-current text-amber-400' : ''}`} />
+                <span>{isCurrentPreferred ? 'Team Preferred' : 'Set as Team Default'}</span>
+              </button>
+            )}
           </div>
 
           <button

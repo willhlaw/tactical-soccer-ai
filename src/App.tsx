@@ -205,7 +205,7 @@ export default function App() {
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6">
         {activeTab === 'tactics' && (
-          <TacticsBoard team={activeTeam} />
+          <TacticsBoard team={activeTeam} onUpdateTeam={handleUpdateTeam} />
         )}
 
         {activeTab === 'gameday' && (
