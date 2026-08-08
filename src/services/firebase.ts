@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, enableIndexedDbPersistence, collection, doc, setDoc, getDocs } from 'firebase/firestore';
+import { initializeFirestore, persistentLocalCache, collection, doc, setDoc, getDocs } from 'firebase/firestore';
 import { Team } from '../types';
 
 // Google Firebase Configuration for tactical-soccer-ai-app
@@ -11,20 +11,11 @@ export const firebaseConfig = {
 
 // Initialize Firebase App
 export const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app);
 
-// Enable Offline Persistence for zero-latency pitch use
-try {
-  enableIndexedDbPersistence(db).catch((err) => {
-    if (err.code === 'failed-precondition') {
-      console.warn('Multiple tabs open, offline persistence enabled in main tab.');
-    } else if (err.code === 'unimplemented') {
-      console.warn('Browser does not support offline persistence.');
-    }
-  });
-} catch (e) {
-  console.log('IndexedDB persistence init:', e);
-}
+// Initialize Firestore with modern persistent local cache (IndexedDB)
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache()
+});
 
 /**
  * Cloud Sync Team to Firestore
