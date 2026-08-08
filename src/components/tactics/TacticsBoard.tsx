@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { PitchCanvas } from './PitchCanvas';
 import { Team, PitchNode, TacticalArrow, FormationPreset } from '../../types';
 import { FORMATION_PRESETS, getFormationsForFormat } from '../../services/formations';
-import { Play, Pause, RotateCcw, Plus, Trash2, ArrowUpRight, Shield, Zap, Sparkles } from 'lucide-react';
+import { Play, Pause, RotateCcw, Trash2, Shield, Zap, Maximize2, Minimize2, PenTool } from 'lucide-react';
 
 interface TacticsBoardProps {
   team: Team;
@@ -36,6 +36,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateFormat
   const [isDrawingArrow, setIsDrawingArrow] = useState(false);
   const [arrowType, setArrowType] = useState<'pass' | 'run' | 'dribble' | 'shot'>('pass');
   const [isPlayingAnimation, setIsPlayingAnimation] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const playersMap = React.useMemo(() => {
     const map: Record<string, any> = {};
@@ -65,7 +66,20 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateFormat
     setArrows(prev => [...prev, arrow]);
   };
 
-  const handleClearArrows = () => {
+  const handleResetPositions = () => {
+    setIsPlayingAnimation(false);
+    setNodes(selectedFormation.nodes.map((n, i) => ({
+      id: 'node-' + i,
+      label: n.label,
+      role: n.role,
+      x: n.x,
+      y: n.y,
+      assignedPlayerId: team.roster[i]?.id,
+      team: 'home'
+    })));
+  };
+
+  const handleClearLines = () => {
     setArrows([]);
   };
 
@@ -86,31 +100,41 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateFormat
                 </span>
               )}
             </h2>
-            <p className="text-xs text-slate-400">Drag players or draw tactical pass/run vectors</p>
+            <p className="text-xs text-slate-400">Drag players, draw tactical arrows, or play movement animations</p>
           </div>
         </div>
 
-        {/* Formation Dropdown */}
+        {/* Formation Dropdown & Fullscreen Toggle */}
         <div className="flex items-center space-x-3">
-          <label className="text-xs font-semibold text-slate-300">Formation:</label>
-          <select
-            value={selectedFormation.id}
-            onChange={(e) => {
-              const found = availableFormations.find(f => f.id === e.target.value);
-              if (found) handleSelectFormation(found);
-            }}
-            className="bg-slate-900 text-white text-sm px-3 py-2 rounded-xl border border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+          <div className="flex items-center space-x-2">
+            <label className="text-xs font-semibold text-slate-300">Formation:</label>
+            <select
+              value={selectedFormation.id}
+              onChange={(e) => {
+                const found = availableFormations.find(f => f.id === e.target.value);
+                if (found) handleSelectFormation(found);
+              }}
+              className="bg-slate-900 text-white text-sm px-3 py-2 rounded-xl border border-slate-700 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            >
+              {availableFormations.map(f => (
+                <option key={f.id} value={f.id}>{f.name}</option>
+              ))}
+            </select>
+          </div>
+
+          <button
+            onClick={() => setIsFullscreen(!isFullscreen)}
+            className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl border border-slate-700 transition"
+            title={isFullscreen ? "Exit Fullscreen" : "Fullscreen Pitch Mode"}
           >
-            {availableFormations.map(f => (
-              <option key={f.id} value={f.id}>{f.name}</option>
-            ))}
-          </select>
+            {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+          </button>
         </div>
       </div>
 
       {/* Main Tactical Board Area */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Left 3 Cols: Pitch Canvas */}
+        {/* Left 3 Cols: Pitch Canvas & Big Touch Bar */}
         <div className="lg:col-span-3 space-y-4">
           <PitchCanvas
             nodes={nodes}
@@ -121,30 +145,33 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateFormat
             arrowType={arrowType}
             onAddArrow={handleAddArrow}
             isPlayingAnimation={isPlayingAnimation}
+            isFullscreen={isFullscreen}
           />
 
-          {/* Canvas Toolbar */}
-          <div className="glass-panel p-3 rounded-xl flex flex-wrap items-center justify-between gap-3 text-xs">
-            {/* Arrow Draw Selector */}
-            <div className="flex items-center space-x-2">
-              <span className="text-slate-400 font-medium">Draw Vector:</span>
+          {/* Big Round Touch Control Bar */}
+          <div className="glass-panel p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 border-2 border-emerald-500/20 shadow-xl">
+            {/* Draw Mode Controls */}
+            <div className="flex items-center space-x-3">
               <button
                 onClick={() => setIsDrawingArrow(!isDrawingArrow)}
-                className={`px-3 py-1.5 rounded-lg border font-medium transition-all ${
-                  isDrawingArrow ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-lg' : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                className={`px-4 py-3 rounded-2xl font-bold text-xs transition-all flex items-center gap-2 border ${
+                  isDrawingArrow
+                    ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-lg shadow-amber-500/30'
+                    : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
                 }`}
               >
-                {isDrawingArrow ? 'Drawing Active' : '+ Draw Line'}
+                <PenTool className="w-4 h-4" />
+                <span>{isDrawingArrow ? 'Drawing Vector Mode' : '+ Draw Vector'}</span>
               </button>
 
               {isDrawingArrow && (
-                <div className="flex items-center space-x-1 bg-slate-900 p-1 rounded-lg border border-slate-800">
+                <div className="flex items-center space-x-1.5 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
                   {(['pass', 'run', 'dribble', 'shot'] as const).map(type => (
                     <button
                       key={type}
                       onClick={() => setArrowType(type)}
-                      className={`px-2 py-1 rounded text-[11px] font-semibold capitalize ${
-                        arrowType === type ? 'bg-emerald-500 text-white shadow' : 'text-slate-400 hover:text-white'
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold capitalize transition ${
+                        arrowType === type ? 'bg-emerald-500 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
                       }`}
                     >
                       {type}
@@ -154,21 +181,37 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateFormat
               )}
             </div>
 
-            {/* Animation & Action Controls */}
-            <div className="flex items-center space-x-2">
+            {/* Big Round Animation & Pitch Action Buttons */}
+            <div className="flex items-center space-x-3">
+              {/* Big Round Play / Pause Button */}
               <button
                 onClick={() => setIsPlayingAnimation(!isPlayingAnimation)}
-                className="flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg font-medium transition"
+                className={`w-14 h-14 rounded-full flex items-center justify-center font-bold transition-all shadow-xl ${
+                  isPlayingAnimation
+                    ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 ring-4 ring-amber-500/30 animate-pulse'
+                    : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 ring-4 ring-emerald-500/30 scale-105'
+                }`}
+                title={isPlayingAnimation ? "Pause Animation (Holds position)" : "Play Drill Animation"}
               >
-                {isPlayingAnimation ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-                <span>{isPlayingAnimation ? 'Pause Playback' : 'Play Drill'}</span>
+                {isPlayingAnimation ? <Pause className="w-7 h-7 fill-current" /> : <Play className="w-7 h-7 fill-current ml-0.5" />}
               </button>
+
+              {/* Big Round Reset Positions Button */}
               <button
-                onClick={handleClearArrows}
-                className="flex items-center space-x-1 px-3 py-1.5 bg-slate-800 hover:bg-red-500/20 text-slate-300 hover:text-red-400 rounded-lg border border-slate-700 transition"
+                onClick={handleResetPositions}
+                className="w-12 h-12 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 flex items-center justify-center transition shadow-md"
+                title="Reset Player Positions to Formation"
               >
-                <Trash2 className="w-3.5 h-3.5" />
-                <span>Clear Lines</span>
+                <RotateCcw className="w-5 h-5" />
+              </button>
+
+              {/* Big Round Clear Lines Button */}
+              <button
+                onClick={handleClearLines}
+                className="w-12 h-12 rounded-full bg-slate-800 hover:bg-red-500/20 text-slate-300 hover:text-red-400 border border-slate-700 flex items-center justify-center transition shadow-md"
+                title="Clear Drawn Tactical Lines"
+              >
+                <Trash2 className="w-5 h-5" />
               </button>
             </div>
           </div>
