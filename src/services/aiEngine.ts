@@ -1,17 +1,20 @@
 import { AICoachMessage, Team, FormationPreset, Drill, AgeGroup } from '../types';
 import { PHILOSOPHY_KNOWLEDGE } from './coachingKnowledge';
+import { isPromptChildSafe, YOUTH_SAFE_INTERCEPT_MESSAGE, sanitizePromptForYouth } from './safetyFilter';
 
 export function generateAIDrill(userPrompt: string, ageGroup: AgeGroup = 'U9-U10'): Drill {
-  const lower = userPrompt.toLowerCase();
+  // Check Age 6+ Safety Guardrail
+  const safePrompt = isPromptChildSafe(userPrompt) ? userPrompt : sanitizePromptForYouth(userPrompt);
+  const lower = safePrompt.toLowerCase();
   const drillId = 'drill-ai-' + Date.now();
 
-  let title = 'AI Generated Tactical Drill';
+  let title = 'Youth Build-Out & Teamwork Drill';
   let category: Drill['category'] = 'Passing';
-  let description = 'AI generated practice drill tailored to team tactical style and age group goals.';
+  let description = 'Positive, age-appropriate youth soccer drill building fundamental ball control, spatial awareness, and sportsmanship.';
   let coachingPoints = [
-    'Maintain spatial width and body orientation facing the play.',
-    'Quick decision-making under high press.',
-    'Communicate loudly: "Turn!", "Man on!", or "Overlap!"'
+    'Be brave on the ball — encourage creative decision making!',
+    'Maintain spatial width and face the play.',
+    'Cheer on teammates and practice fair play!'
   ];
 
   if (lower.includes('overlap') || lower.includes('wing') || lower.includes('wide')) {
@@ -94,6 +97,16 @@ export function processAICoachPrompt(
   team: Team,
   currentFormation: FormationPreset
 ): AICoachMessage {
+  // Check Safety Guardrail first
+  if (!isPromptChildSafe(userText)) {
+    return {
+      id: 'msg-' + Date.now(),
+      sender: 'ai',
+      text: YOUTH_SAFE_INTERCEPT_MESSAGE,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+  }
+
   const lower = userText.toLowerCase();
   const styleDetail = PHILOSOPHY_KNOWLEDGE[team.playingStyle] || PHILOSOPHY_KNOWLEDGE['youth-buildout'];
 
