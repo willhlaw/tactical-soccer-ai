@@ -157,6 +157,152 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
 
   const isCurrentPreferred = team.preferredFormationId === selectedFormation.id;
 
+  // 100% OPAQUE FULL-SCREEN VIEWPORT MODAL OVERLAY
+  if (isFullscreen) {
+    return (
+      <div className="fixed inset-0 z-[9999] bg-slate-950 w-screen h-screen p-4 flex flex-col justify-between select-none touch-none overflow-hidden">
+        {/* Fullscreen Header Bar */}
+        <div className="flex items-center justify-between bg-slate-900/90 backdrop-blur p-3.5 rounded-2xl border border-slate-800">
+          <div className="flex items-center space-x-3">
+            <div className="p-2 bg-emerald-500 text-slate-950 font-black rounded-xl text-xs">
+              TS
+            </div>
+            <div>
+              <h2 className="text-sm font-black text-white flex items-center gap-2">
+                {team.name} Fullscreen Board ({team.format})
+                {isCurrentPreferred && (
+                  <span className="px-2 py-0.5 bg-amber-500/20 text-amber-300 text-[10px] rounded-full border border-amber-500/30 font-medium">
+                    ⭐ Preferred Shape
+                  </span>
+                )}
+              </h2>
+            </div>
+          </div>
+
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => setShowOpposition(!showOpposition)}
+              className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border ${
+                showOpposition
+                  ? 'bg-red-600 text-white border-red-500 shadow-md shadow-red-600/30'
+                  : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-white'
+              }`}
+            >
+              <Users className="w-4 h-4" />
+              <span>{showOpposition ? 'Opposition On' : '+ Opposition'}</span>
+            </button>
+
+            <select
+              value={selectedFormation.id}
+              onChange={(e) => {
+                const found = availableFormations.find(f => f.id === e.target.value);
+                if (found) handleSelectFormation(found);
+              }}
+              className="bg-slate-950 text-white text-xs px-3 py-2 rounded-xl border border-slate-800 font-semibold focus:outline-none"
+            >
+              {availableFormations.map(f => (
+                <option key={f.id} value={f.id}>
+                  {f.id === team.preferredFormationId ? `⭐ ${f.name}` : f.name}
+                </option>
+              ))}
+            </select>
+
+            <button
+              onClick={() => setIsFullscreen(false)}
+              className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-xl flex items-center gap-1.5 shadow-lg shadow-emerald-500/20"
+            >
+              <Minimize2 className="w-4 h-4" /> Exit Fullscreen
+            </button>
+          </div>
+        </div>
+
+        {/* 100% Full Height Pitch Canvas */}
+        <div className="flex-1 my-3 relative w-full h-full overflow-hidden">
+          <PitchCanvas
+            nodes={nodes}
+            arrows={arrows}
+            playersMap={playersMap}
+            onNodeMove={handleNodeMove}
+            isDrawingArrow={isDrawingArrow}
+            arrowType={arrowType}
+            onAddArrow={handleAddArrow}
+            isPlayingAnimation={isPlayingAnimation}
+            isFullscreen={true}
+            ballPos={ballPos}
+            onBallMove={(x, y) => setBallPos({ x, y })}
+            awayNodes={showOpposition ? awayNodes : []}
+            onAwayNodeMove={handleAwayNodeMove}
+          />
+        </div>
+
+        {/* Floating Bottom Touch Bar */}
+        <div className="bg-slate-900/95 backdrop-blur p-3 rounded-2xl flex flex-wrap items-center justify-between gap-4 border border-slate-800 shadow-2xl">
+          {/* Vector Drawing Mode Controls */}
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => setIsDrawingArrow(!isDrawingArrow)}
+              className={`px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 border ${
+                isDrawingArrow
+                  ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-lg shadow-amber-500/30'
+                  : 'bg-slate-950 text-slate-300 border-slate-800 hover:bg-slate-800'
+              }`}
+            >
+              <PenTool className="w-4 h-4" />
+              <span>{isDrawingArrow ? 'Drawing Vector Mode' : '+ Draw Vector'}</span>
+            </button>
+
+            {isDrawingArrow && (
+              <div className="flex items-center space-x-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                {(['pass', 'run', 'dribble', 'shot'] as const).map(type => (
+                  <button
+                    key={type}
+                    onClick={() => setArrowType(type)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition ${
+                      arrowType === type ? 'bg-emerald-500 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Action Touch Buttons */}
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => setIsPlayingAnimation(!isPlayingAnimation)}
+              className={`w-12 h-12 rounded-full flex items-center justify-center font-bold transition-all shadow-xl ${
+                isPlayingAnimation
+                  ? 'bg-amber-500 text-slate-950 ring-4 ring-amber-500/40 animate-pulse'
+                  : 'bg-emerald-500 text-slate-950 ring-4 ring-emerald-500/40 scale-105'
+              }`}
+            >
+              {isPlayingAnimation ? <Pause className="w-6 h-6 fill-current" /> : <Play className="w-6 h-6 fill-current ml-0.5" />}
+            </button>
+
+            <button
+              onClick={handleResetBoard}
+              className="w-11 h-11 rounded-full bg-slate-950 text-slate-300 border border-slate-800 flex items-center justify-center"
+              title="Reset Board & Ball"
+            >
+              <RotateCcw className="w-5 h-5" />
+            </button>
+
+            <button
+              onClick={handleClearLines}
+              className="w-11 h-11 rounded-full bg-slate-950 text-slate-300 border border-slate-800 flex items-center justify-center"
+              title="Clear Lines"
+            >
+              <Trash2 className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Normal In-Page Mode
   return (
     <div className="space-y-6">
       {/* Top Bar: Controls & Formation Selector */}
@@ -227,18 +373,18 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
           </div>
 
           <button
-            onClick={() => setIsFullscreen(!isFullscreen)}
+            onClick={() => setIsFullscreen(true)}
             className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl border border-slate-700 transition"
-            title={isFullscreen ? "Exit Fullscreen" : "Fullscreen Pitch Mode"}
+            title="Fullscreen Pitch Mode"
           >
-            {isFullscreen ? <Minimize2 className="w-5 h-5" /> : <Maximize2 className="w-5 h-5" />}
+            <Maximize2 className="w-5 h-5" />
           </button>
         </div>
       </div>
 
       {/* Main Tactical Board Area */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-        {/* Left 3 Cols: Pitch Canvas & Big Touch Bar */}
+        {/* Left 3 Cols: Pitch Canvas & Touch Control Bar */}
         <div className="lg:col-span-3 space-y-4">
           <PitchCanvas
             nodes={nodes}
@@ -249,127 +395,77 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
             arrowType={arrowType}
             onAddArrow={handleAddArrow}
             isPlayingAnimation={isPlayingAnimation}
-            isFullscreen={isFullscreen}
+            isFullscreen={false}
             ballPos={ballPos}
             onBallMove={(x, y) => setBallPos({ x, y })}
             awayNodes={showOpposition ? awayNodes : []}
             onAwayNodeMove={handleAwayNodeMove}
           />
 
-          {/* Fullscreen Overlay Bar when in Maximum Mode */}
-          {isFullscreen && (
-            <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[110] glass-panel p-4 rounded-3xl flex items-center space-x-4 border-2 border-emerald-400/40 shadow-2xl backdrop-blur-xl">
+          {/* Normal Mode Touch Control Bar */}
+          <div className="glass-panel p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 border-2 border-emerald-500/20 shadow-xl">
+            {/* Draw Mode Controls */}
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => setIsDrawingArrow(!isDrawingArrow)}
+                className={`px-4 py-3 rounded-2xl font-bold text-xs transition-all flex items-center gap-2 border ${
+                  isDrawingArrow
+                    ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-lg shadow-amber-500/30'
+                    : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                }`}
+              >
+                <PenTool className="w-4 h-4" />
+                <span>{isDrawingArrow ? 'Drawing Vector Mode' : '+ Draw Vector'}</span>
+              </button>
+
+              {isDrawingArrow && (
+                <div className="flex items-center space-x-1.5 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
+                  {(['pass', 'run', 'dribble', 'shot'] as const).map(type => (
+                    <button
+                      key={type}
+                      onClick={() => setArrowType(type)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-bold capitalize transition ${
+                        arrowType === type ? 'bg-emerald-500 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center space-x-3">
               <button
                 onClick={() => setIsPlayingAnimation(!isPlayingAnimation)}
                 className={`w-14 h-14 rounded-full flex items-center justify-center font-bold transition-all shadow-xl ${
                   isPlayingAnimation
-                    ? 'bg-amber-500 text-slate-950 ring-4 ring-amber-500/40 animate-pulse'
-                    : 'bg-emerald-500 text-slate-950 ring-4 ring-emerald-500/40 scale-105'
+                    ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 ring-4 ring-amber-500/30 animate-pulse'
+                    : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 ring-4 ring-emerald-500/30 scale-105'
                 }`}
+                title={isPlayingAnimation ? "Pause Animation" : "Play Drill Animation"}
               >
                 {isPlayingAnimation ? <Pause className="w-7 h-7 fill-current" /> : <Play className="w-7 h-7 fill-current ml-0.5" />}
               </button>
 
               <button
-                onClick={() => setShowOpposition(!showOpposition)}
-                className={`px-4 py-3 rounded-2xl font-bold text-xs border transition ${
-                  showOpposition ? 'bg-red-600 text-white border-red-500' : 'bg-slate-900 text-slate-300 border-slate-800'
-                }`}
-              >
-                {showOpposition ? 'Opposition On' : '+ Opposition'}
-              </button>
-
-              <button
                 onClick={handleResetBoard}
-                className="w-12 h-12 rounded-full bg-slate-900 text-slate-300 border border-slate-700 flex items-center justify-center"
-                title="Reset Board & Ball"
+                className="w-12 h-12 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 flex items-center justify-center transition shadow-md"
+                title="Reset Board & Ball to Center"
               >
                 <RotateCcw className="w-5 h-5" />
               </button>
 
               <button
                 onClick={handleClearLines}
-                className="w-12 h-12 rounded-full bg-slate-900 text-slate-300 border border-slate-700 flex items-center justify-center"
-                title="Clear Lines"
+                className="w-12 h-12 rounded-full bg-slate-800 hover:bg-red-500/20 text-slate-300 hover:text-red-400 border border-slate-700 flex items-center justify-center transition shadow-md"
+                title="Clear Drawn Lines"
               >
                 <Trash2 className="w-5 h-5" />
               </button>
-
-              <button
-                onClick={() => setIsFullscreen(false)}
-                className="px-4 py-3 bg-emerald-500 text-slate-950 font-bold text-xs rounded-2xl flex items-center gap-1.5"
-              >
-                <Minimize2 className="w-4 h-4" /> Exit Fullscreen
-              </button>
             </div>
-          )}
-
-          {/* Normal Mode Touch Control Bar */}
-          {!isFullscreen && (
-            <div className="glass-panel p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 border-2 border-emerald-500/20 shadow-xl">
-              {/* Draw Mode Controls */}
-              <div className="flex items-center space-x-3">
-                <button
-                  onClick={() => setIsDrawingArrow(!isDrawingArrow)}
-                  className={`px-4 py-3 rounded-2xl font-bold text-xs transition-all flex items-center gap-2 border ${
-                    isDrawingArrow
-                      ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-lg shadow-amber-500/30'
-                      : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
-                  }`}
-                >
-                  <PenTool className="w-4 h-4" />
-                  <span>{isDrawingArrow ? 'Drawing Vector Mode' : '+ Draw Vector'}</span>
-                </button>
-
-                {isDrawingArrow && (
-                  <div className="flex items-center space-x-1.5 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
-                    {(['pass', 'run', 'dribble', 'shot'] as const).map(type => (
-                      <button
-                        key={type}
-                        onClick={() => setArrowType(type)}
-                        className={`px-3 py-1.5 rounded-xl text-xs font-bold capitalize transition ${
-                          arrowType === type ? 'bg-emerald-500 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
-                        }`}
-                      >
-                        {type}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Big Round Animation & Pitch Action Buttons */}
-              <div className="flex items-center space-x-3">
-                <button
-                  onClick={() => setIsPlayingAnimation(!isPlayingAnimation)}
-                  className={`w-14 h-14 rounded-full flex items-center justify-center font-bold transition-all shadow-xl ${
-                    isPlayingAnimation
-                      ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 ring-4 ring-amber-500/30 animate-pulse'
-                      : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 ring-4 ring-emerald-500/30 scale-105'
-                  }`}
-                  title={isPlayingAnimation ? "Pause Animation (Holds position)" : "Play Drill Animation"}
-                >
-                  {isPlayingAnimation ? <Pause className="w-7 h-7 fill-current" /> : <Play className="w-7 h-7 fill-current ml-0.5" />}
-                </button>
-
-                <button
-                  onClick={handleResetBoard}
-                  className="w-12 h-12 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 flex items-center justify-center transition shadow-md"
-                  title="Reset Board & Soccer Ball to Center"
-                >
-                  <RotateCcw className="w-5 h-5" />
-                </button>
-
-                <button
-                  onClick={handleClearLines}
-                  className="w-12 h-12 rounded-full bg-slate-800 hover:bg-red-500/20 text-slate-300 hover:text-red-400 border border-slate-700 flex items-center justify-center transition shadow-md"
-                  title="Clear Drawn Tactical Lines"
-                >
-                  <Trash2 className="w-5 h-5" />
-                </button>
-              </div>
-            </div>
-          )}
+          </div>
         </div>
 
         {/* Right 1 Col: Tactical Sidebar */}

@@ -145,7 +145,7 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
       onPointerDown={(e) => handlePointerDown(e)}
       className={`relative w-full bg-emerald-900 overflow-hidden shadow-2xl border-4 border-emerald-950 select-none touch-none pitch-bg pitch-stripe transition-all duration-300 ${
         isFullscreen
-          ? 'fixed inset-0 z-[100] bg-slate-950 w-screen h-screen rounded-none border-none'
+          ? 'h-full flex-1 rounded-3xl border-none shadow-none'
           : 'aspect-[4/3] md:aspect-[16/10] rounded-2xl'
       }`}
     >
