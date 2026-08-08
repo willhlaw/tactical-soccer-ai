@@ -271,8 +271,13 @@ const PlayerEditModal: React.FC<PlayerEditModalProps> = ({ player, onSave, onClo
               <label className="text-slate-300 font-bold text-xs">Jersey #:</label>
               <input
                 type="number"
-                value={formData.number}
-                onChange={(e) => setFormData({ ...formData, number: Number(e.target.value) })}
+                min="1"
+                max="99"
+                value={formData.number ? Number(formData.number) : ''}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value, 10);
+                  setFormData({ ...formData, number: isNaN(val) ? 0 : val });
+                }}
                 className="w-full mt-1.5 px-4 py-3 bg-slate-900 border border-slate-700 rounded-2xl text-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
             </div>

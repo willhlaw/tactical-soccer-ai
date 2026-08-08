@@ -280,7 +280,7 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
                   isPlayingAnimation ? 'ring-emerald-400/60 shadow-emerald-500/50 animate-pulse' : ''
                 }`}
               >
-                {player ? `#${player.number}` : node.label}
+                {player ? `#${Number(player.number)}` : node.label}
               </div>
 
               <div className="mt-1 px-2 py-0.5 bg-slate-950/85 backdrop-blur text-white text-[10px] md:text-xs rounded font-medium shadow whitespace-nowrap border border-white/10">
