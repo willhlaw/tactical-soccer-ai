@@ -74,6 +74,9 @@ export interface FormationPreset {
 export type GameMode = 'recreation' | 'competitive';
 
 export interface MatchSubShift {
+  shiftIndex: number;
+  startTime: number;
+  endTime: number;
   minute: number;
   period: number;
   fieldLineup: { role: PositionRole; playerId: string }[];

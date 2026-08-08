@@ -17,6 +17,9 @@ export function generateMatchSubPlan(config: LineupGeneratorConfig): MatchSubShi
   if (activePlayers.length < numFieldPlayers) {
     // If not enough players, fill what we have
     return [{
+      shiftIndex: 0,
+      startTime: 0,
+      endTime: config.totalDurationMinutes,
       minute: 0,
       period: 1,
       fieldLineup: activePlayers.map((p, idx) => ({
@@ -103,6 +106,9 @@ export function generateMatchSubPlan(config: LineupGeneratorConfig): MatchSubShi
     const benchPlayerIds = activePlayers.filter(p => !usedPlayerIds.has(p.id)).map(p => p.id);
 
     shifts.push({
+      shiftIndex: shiftIdx,
+      startTime: shiftMinute,
+      endTime: Math.min(config.totalDurationMinutes, shiftMinute + config.subIntervalMinutes),
       minute: shiftMinute,
       period: periodNumber,
       fieldLineup: selectedFieldLineup,

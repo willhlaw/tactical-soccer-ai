@@ -202,7 +202,10 @@ export default function App() {
         )}
 
         {activeTab === 'gameday' && (
-          <GameDayManager team={activeTeam} onUpdateRoster={handleUpdateRoster} />
+          <GameDayManager
+            team={activeTeam}
+            onUpdateTeam={handleUpdateTeam}
+          />
         )}
 
         {activeTab === 'roster' && (
