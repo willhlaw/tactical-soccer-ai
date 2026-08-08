@@ -289,7 +289,7 @@ export const FORMATION_PRESETS: FormationPreset[] = [
     ]
   },
 
-  // ================= 11v11 Formations (U13+ / HS / ADP / Pro) =================
+  // ================= 11v11 Formations (U13+ / High School / Pro) =================
   {
     id: '11v11-433-attack',
     name: '4-3-3 Modern High Press & Possession',
@@ -450,6 +450,134 @@ export const FORMATION_PRESETS: FormationPreset[] = [
       { role: 'CM', x: 70, y: 50, label: '9' },
       { role: 'ST', x: 38, y: 22, label: '10' },
       { role: 'ST', x: 62, y: 22, label: '11' },
+    ]
+  },
+
+  // NEW MISSING 11v11 FORMATIONS ADDED BELOW:
+  {
+    id: '11v11-4321-christmas-tree',
+    name: '4-3-2-1 "Christmas Tree"',
+    format: '11v11',
+    nodes: [
+      { role: 'GK', x: 50, y: 90, label: '1' },
+      { role: 'LB', x: 15, y: 75, label: '2' },
+      { role: 'LCB', x: 38, y: 78, label: '3' },
+      { role: 'RCB', x: 62, y: 78, label: '4' },
+      { role: 'RB', x: 85, y: 75, label: '5' },
+      { role: 'CM', x: 25, y: 56, label: '6' },
+      { role: 'CDM', x: 50, y: 58, label: '7' },
+      { role: 'CM', x: 75, y: 56, label: '8' },
+      { role: 'CAM', x: 38, y: 38, label: '9' },
+      { role: 'CAM', x: 62, y: 38, label: '10' },
+      { role: 'ST', x: 50, y: 18, label: '11' },
+    ]
+  },
+  {
+    id: '11v11-541-park-the-bus',
+    name: '5-4-1 "Park the Bus" Low Block Wall',
+    format: '11v11',
+    nodes: [
+      { role: 'GK', x: 50, y: 90, label: '1' },
+      { role: 'LB', x: 12, y: 76, label: '2' },
+      { role: 'LCB', x: 30, y: 78, label: '3' },
+      { role: 'CB', x: 50, y: 80, label: '4' },
+      { role: 'RCB', x: 70, y: 78, label: '5' },
+      { role: 'RB', x: 88, y: 76, label: '6' },
+      { role: 'LM', x: 18, y: 52, label: '7' },
+      { role: 'CM', x: 38, y: 52, label: '8' },
+      { role: 'CM', x: 62, y: 52, label: '9' },
+      { role: 'RM', x: 82, y: 52, label: '10' },
+      { role: 'ST', x: 50, y: 24, label: '11' },
+    ]
+  },
+  {
+    id: '11v11-451-flat-midfield',
+    name: '4-5-1 Midfield Shield',
+    format: '11v11',
+    nodes: [
+      { role: 'GK', x: 50, y: 90, label: '1' },
+      { role: 'LB', x: 15, y: 75, label: '2' },
+      { role: 'LCB', x: 38, y: 78, label: '3' },
+      { role: 'RCB', x: 62, y: 78, label: '4' },
+      { role: 'RB', x: 85, y: 75, label: '5' },
+      { role: 'LM', x: 15, y: 48, label: '6' },
+      { role: 'CM', x: 32, y: 50, label: '7' },
+      { role: 'CDM', x: 50, y: 54, label: '8' },
+      { role: 'CM', x: 68, y: 50, label: '9' },
+      { role: 'RM', x: 85, y: 48, label: '10' },
+      { role: 'ST', x: 50, y: 20, label: '11' },
+    ]
+  },
+  {
+    id: '11v11-4312-narrow',
+    name: '4-3-1-2 Narrow Playmaker Shape',
+    format: '11v11',
+    nodes: [
+      { role: 'GK', x: 50, y: 90, label: '1' },
+      { role: 'LB', x: 15, y: 75, label: '2' },
+      { role: 'LCB', x: 38, y: 78, label: '3' },
+      { role: 'RCB', x: 62, y: 78, label: '4' },
+      { role: 'RB', x: 85, y: 75, label: '5' },
+      { role: 'CM', x: 28, y: 54, label: '6' },
+      { role: 'CDM', x: 50, y: 58, label: '7' },
+      { role: 'CM', x: 72, y: 54, label: '8' },
+      { role: 'CAM', x: 50, y: 38, label: '9' },
+      { role: 'ST', x: 38, y: 18, label: '10' },
+      { role: 'ST', x: 62, y: 18, label: '11' },
+    ]
+  },
+  {
+    id: '11v11-4222-magic-square',
+    name: '4-2-2-2 "Magic Square" (Gegenpress)',
+    format: '11v11',
+    nodes: [
+      { role: 'GK', x: 50, y: 90, label: '1' },
+      { role: 'LB', x: 15, y: 75, label: '2' },
+      { role: 'LCB', x: 38, y: 78, label: '3' },
+      { role: 'RCB', x: 62, y: 78, label: '4' },
+      { role: 'RB', x: 85, y: 75, label: '5' },
+      { role: 'CDM', x: 38, y: 58, label: '6' },
+      { role: 'CDM', x: 62, y: 58, label: '7' },
+      { role: 'CAM', x: 32, y: 38, label: '8' },
+      { role: 'CAM', x: 68, y: 38, label: '9' },
+      { role: 'ST', x: 38, y: 18, label: '10' },
+      { role: 'ST', x: 62, y: 18, label: '11' },
+    ]
+  },
+  {
+    id: '11v11-3331-bielsa',
+    name: '3-3-3-1 High Vertical Attack',
+    format: '11v11',
+    nodes: [
+      { role: 'GK', x: 50, y: 90, label: '1' },
+      { role: 'LCB', x: 28, y: 78, label: '2' },
+      { role: 'CB', x: 50, y: 80, label: '3' },
+      { role: 'RCB', x: 72, y: 78, label: '4' },
+      { role: 'LM', x: 20, y: 56, label: '5' },
+      { role: 'CDM', x: 50, y: 58, label: '6' },
+      { role: 'RM', x: 80, y: 56, label: '7' },
+      { role: 'LW', x: 20, y: 36, label: '8' },
+      { role: 'CAM', x: 50, y: 36, label: '9' },
+      { role: 'RW', x: 80, y: 36, label: '10' },
+      { role: 'ST', x: 50, y: 18, label: '11' },
+    ]
+  },
+  {
+    id: '11v11-460-false9',
+    name: '4-6-0 Strikerless (False 9 Fluid Shape)',
+    format: '11v11',
+    nodes: [
+      { role: 'GK', x: 50, y: 90, label: '1' },
+      { role: 'LB', x: 15, y: 75, label: '2' },
+      { role: 'LCB', x: 38, y: 78, label: '3' },
+      { role: 'RCB', x: 62, y: 78, label: '4' },
+      { role: 'RB', x: 85, y: 75, label: '5' },
+      { role: 'CDM', x: 50, y: 60, label: '6' },
+      { role: 'CM', x: 32, y: 46, label: '7' },
+      { role: 'CM', x: 68, y: 46, label: '8' },
+      { role: 'LW', x: 20, y: 30, label: '9' },
+      { role: 'CAM', x: 50, y: 32, label: '10' },
+      { role: 'RW', x: 80, y: 30, label: '11' },
     ]
   }
 ];
