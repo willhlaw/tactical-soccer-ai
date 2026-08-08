@@ -8,7 +8,7 @@ const PRO_STATUS_KEY = 'tactical_soccer_ai_pro_active';
 export const DEMO_PLAYERS: Player[] = [
   {
     id: 'p1',
-    name: 'Alex Morgan',
+    name: 'Alex Martinez',
     number: 13,
     isAbsent: false,
     preferredPositions: ['ST', 'FW', 'GK'],

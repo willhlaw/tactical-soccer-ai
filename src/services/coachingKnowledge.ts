@@ -32,7 +32,7 @@ export const PHILOSOPHY_KNOWLEDGE: Record<PlayingStyle, TacticalPhilosophyDetail
   },
   'positional-play': {
     name: 'Positional Play (Tiki-Taka)',
-    creator: 'Guardiola / European Academies',
+    creator: 'European Academies',
     tagline: 'Numerical Overloads & Half-Space Infiltration',
     buildUpStrategy: 'Patience in possession. Pass to attract opponent to one side, then rapidly switch to free winger on weak side.',
     defensivePressTrigger: 'Immediate 6-second counter-press upon losing possession in opponent half.',
@@ -50,7 +50,7 @@ export const PHILOSOPHY_KNOWLEDGE: Record<PlayingStyle, TacticalPhilosophyDetail
   },
   'high-press': {
     name: 'High Press & Gegenpress',
-    creator: 'Klopp / German School',
+    creator: 'High-Press Academy',
     tagline: 'Heavy Metal Football & Rapid Vertical Transition',
     buildUpStrategy: 'Bypass deep midfield with direct crisp passes to physical strikers, then win 2nd ball in dangerous territory.',
     defensivePressTrigger: 'All players sprint into trapping zones as soon as opponent receives ball near sidelines.',
@@ -67,7 +67,7 @@ export const PHILOSOPHY_KNOWLEDGE: Record<PlayingStyle, TacticalPhilosophyDetail
   },
   'low-block': {
     name: 'Compact Low Block & Counter',
-    creator: 'Mourinho / Counter Specialists',
+    creator: 'Defensive Specialists',
     tagline: 'Defensive Solidity & Explosive Counter Breaks',
     buildUpStrategy: 'Absorb pressure in lower 1/3, lock down central channels, then launch 30-yard diagonal passes to fast wingers.',
     defensivePressTrigger: 'Fall back into compact 2-line block at midfield circle. Press only when opponent enters outer 35 yards.',

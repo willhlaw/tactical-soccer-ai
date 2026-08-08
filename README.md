@@ -10,7 +10,7 @@ Offline-first soccer team management Progressive Web App with interactive 2D Can
   - **Competitive Mode (ADP/Travel/High School)**: Optimizes field balance based on player strength ratings.
   - **1-Tap Absence Check**: Quick check-off of missing/injured players.
 - **Coach Rory AI Assistant**: Speech-to-text voice assistant with Coach Rory youth tactics (build out from back, 2-3-1 & 3-2-3 shapes, trigger pressing).
-- **Practice Hub & Parent Share Drawer**: Export WhatsApp/SMS formatted recaps and public drill web links.
+- **Parent Share Drawer**: Export formatted recaps and public drill web links to messaging apps.
 - **Commercial Landing Page**: Public marketing page with interactive live pitch canvas demo widget and pricing matrix ($0 Free vs $9.99/mo AI Coach Pro).
 
 ## 🛠️ Tech Stack
