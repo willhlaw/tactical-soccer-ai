@@ -9,6 +9,7 @@ interface PitchCanvasProps {
   isDrawingArrow?: boolean;
   arrowType?: 'pass' | 'run' | 'dribble' | 'shot';
   onAddArrow?: (arrow: TacticalArrow) => void;
+  isPlayingAnimation?: boolean;
 }
 
 export const PitchCanvas: React.FC<PitchCanvasProps> = ({
@@ -18,12 +19,44 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
   onNodeMove,
   isDrawingArrow = false,
   arrowType = 'pass',
-  onAddArrow
+  onAddArrow,
+  isPlayingAnimation = false
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
   const [drawingStart, setDrawingStart] = useState<{ x: number; y: number } | null>(null);
   const [currentMousePos, setCurrentMousePos] = useState<{ x: number; y: number } | null>(null);
+  const [animProgress, setAnimProgress] = useState<number>(0);
+
+  // 60fps Animation Loop when Play Drill is active
+  useEffect(() => {
+    let animFrame: number;
+    let startTime: number | null = null;
+    const DURATION_MS = 2500; // 2.5 seconds per movement cycle
+
+    if (isPlayingAnimation) {
+      const animate = (timestamp: number) => {
+        if (!startTime) startTime = timestamp;
+        const elapsed = timestamp - startTime;
+        const rawProgress = (elapsed % DURATION_MS) / DURATION_MS;
+        
+        // Easing function for smooth acceleration and deceleration
+        const eased = rawProgress < 0.5 
+          ? 2 * rawProgress * rawProgress 
+          : 1 - Math.pow(-2 * rawProgress + 2, 2) / 2;
+
+        setAnimProgress(eased);
+        animFrame = requestAnimationFrame(animate);
+      };
+      animFrame = requestAnimationFrame(animate);
+    } else {
+      setAnimProgress(0);
+    }
+
+    return () => {
+      if (animFrame) cancelAnimationFrame(animFrame);
+    };
+  }, [isPlayingAnimation]);
 
   const handlePointerDown = (e: React.PointerEvent, node?: PitchNode) => {
     if (!containerRef.current) return;
@@ -121,9 +154,10 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
                 strokeWidth="4"
                 strokeDasharray={isDashed ? '6 4' : 'none'}
                 strokeLinecap="round"
+                opacity={isPlayingAnimation ? 0.4 : 1}
               />
               {/* Arrow Head */}
-              <circle cx={`${arrow.endX}%`} cy={`${arrow.endY}%`} r="6" fill={stroke} />
+              <circle cx={`${arrow.endX}%`} cy={`${arrow.endY}%`} r="6" fill={stroke} opacity={isPlayingAnimation ? 0.5 : 1} />
             </g>
           );
         })}
@@ -147,11 +181,34 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
         const player = node.assignedPlayerId ? playersMap[node.assignedPlayerId] : null;
         const isSelected = draggedNodeId === node.id;
 
+        // Find matching arrow starting near this node for animation
+        let currentX = node.x;
+        let currentY = node.y;
+
+        if (isPlayingAnimation && animProgress > 0) {
+          const matchingArrow = arrows.find(a => 
+            Math.hypot(node.x - a.startX, node.y - a.startY) < 12 ||
+            Math.hypot(node.x - a.endX, node.y - a.endY) < 12
+          );
+
+          if (matchingArrow) {
+            // Determine if node is near start or end
+            const nearStart = Math.hypot(node.x - matchingArrow.startX, node.y - matchingArrow.startY) < 12;
+            const startX = nearStart ? matchingArrow.startX : matchingArrow.endX;
+            const startY = nearStart ? matchingArrow.startY : matchingArrow.endY;
+            const endX = nearStart ? matchingArrow.endX : matchingArrow.startX;
+            const endY = nearStart ? matchingArrow.endY : matchingArrow.startY;
+
+            currentX = startX + (endX - startX) * animProgress;
+            currentY = startY + (endY - startY) * animProgress;
+          }
+        }
+
         return (
           <div
             key={node.id}
             onPointerDown={(e) => handlePointerDown(e, node)}
-            style={{ left: `${node.x}%`, top: `${node.y}%` }}
+            style={{ left: `${currentX}%`, top: `${currentY}%` }}
             className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing transition-transform duration-75 ${
               isSelected ? 'scale-125 z-30' : 'z-20 hover:scale-110'
             }`}
@@ -160,7 +217,9 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
             <div className="relative group flex flex-col items-center">
               <div
                 style={{ backgroundColor: player?.avatarColor || (node.role === 'GK' ? '#fbbf24' : '#10b981') }}
-                className="w-10 h-10 md:w-12 md:h-12 rounded-full border-2 border-white shadow-xl flex items-center justify-center font-bold text-white text-xs md:text-sm ring-4 ring-black/20"
+                className={`w-10 h-10 md:w-12 md:h-12 rounded-full border-2 border-white shadow-xl flex items-center justify-center font-bold text-white text-xs md:text-sm ring-4 ring-black/20 ${
+                  isPlayingAnimation ? 'ring-emerald-400/50 shadow-emerald-500/50' : ''
+                }`}
               >
                 {player ? `#${player.number}` : node.label}
               </div>

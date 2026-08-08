@@ -120,6 +120,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateFormat
             isDrawingArrow={isDrawingArrow}
             arrowType={arrowType}
             onAddArrow={handleAddArrow}
+            isPlayingAnimation={isPlayingAnimation}
           />
 
           {/* Canvas Toolbar */}
