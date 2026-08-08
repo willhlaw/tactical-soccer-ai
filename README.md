@@ -1,6 +1,6 @@
 # TacticalSoccer AI (Progressive Web App)
 
-Offline-first soccer team management Progressive Web App with interactive 2D Canvas pitch boards (Tactico.pro & FormationBuilder style), fair-play equal minute lineup & sub matrix engine, Coach Rory AI voice assistant, and parent drill sharing.
+Offline-first soccer team management Progressive Web App with interactive 2D Canvas pitch boards, fair-play equal minute lineup & sub matrix engine, AI voice assistant, and parent drill sharing.
 
 ## 🚀 Features
 

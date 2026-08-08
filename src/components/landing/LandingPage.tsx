@@ -80,7 +80,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp, onSelectP
           </h1>
 
           <p className="text-base md:text-lg text-slate-400 leading-relaxed max-w-xl">
-            The offline-first Progressive Web App for team management. Design interactive 2D pitch boards (Tactico.pro style), run equal-minute fair play sub matrixes, and build tactics with voice AI on the pitch.
+            The offline-first Progressive Web App for team management. Design interactive 2D pitch boards, run equal-minute fair play sub matrixes, and build tactics with voice AI on the pitch.
           </p>
 
           <div className="flex flex-wrap items-center gap-4 pt-2">
