@@ -1,8 +1,8 @@
 import { Team, Drill, PlayingStyle, AgeGroup, FormatType, Player } from '../types';
+import { syncTeamToCloud } from './firebase';
 
 const TEAMS_STORAGE_KEY = 'tactical_soccer_teams_v1';
 const ACTIVE_TEAM_ID_KEY = 'tactical_soccer_active_team_id';
-const DRILLS_STORAGE_KEY = 'tactical_soccer_drills_v1';
 const PRO_STATUS_KEY = 'tactical_soccer_ai_pro_active';
 
 export const DEMO_PLAYERS: Player[] = [
@@ -136,6 +136,8 @@ export function getLocalTeams(): Team[] {
 export function saveLocalTeams(teams: Team[]): void {
   try {
     localStorage.setItem(TEAMS_STORAGE_KEY, JSON.stringify(teams));
+    // Trigger background cloud sync for each team
+    teams.forEach(t => syncTeamToCloud(t));
   } catch (e) {
     console.error('Error saving teams:', e);
   }
