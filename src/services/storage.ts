@@ -104,7 +104,7 @@ export const INITIAL_TEAMS: Team[] = [
     name: 'Thunderbolts U10 (Rec)',
     ageGroup: 'U9-U10',
     format: '7v7',
-    playingStyle: 'coach-rory',
+    playingStyle: 'youth-buildout',
     customStyleNotes: 'Focus on 2-3-1 shape, building out from the back, and trigger pressing on weak touches.',
     roster: DEMO_PLAYERS.slice(0, 9)
   },
@@ -113,7 +113,7 @@ export const INITIAL_TEAMS: Team[] = [
     name: 'Vipers ADP U12 (Select)',
     ageGroup: 'U11-U12',
     format: '9v9',
-    playingStyle: 'coach-rory',
+    playingStyle: 'youth-buildout',
     customStyleNotes: '3-2-3 formation, high press counter attack, quick wing play.',
     roster: DEMO_PLAYERS
   }

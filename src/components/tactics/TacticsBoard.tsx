@@ -80,9 +80,9 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateFormat
           <div>
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
               Tactics Board ({team.format})
-              {team.playingStyle === 'coach-rory' && (
+              {team.playingStyle === 'youth-buildout' && (
                 <span className="px-2.5 py-0.5 bg-amber-500/20 text-amber-300 text-xs rounded-full border border-amber-500/30 font-medium">
-                  Coach Rory Style
+                  Youth Build-Out Style
                 </span>
               )}
             </h2>
@@ -183,7 +183,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateFormat
           <div className="p-3 bg-emerald-950/40 rounded-xl border border-emerald-500/20 text-xs space-y-2">
             <div className="font-semibold text-emerald-300">Active Formation: {selectedFormation.name}</div>
             <p className="text-slate-300 leading-relaxed">
-              {team.playingStyle === 'coach-rory'
+              {team.playingStyle === 'youth-buildout'
                 ? 'Emphasizes split center backs, build-out through the goalkeeper, and aggressive trigger-based high pressing.'
                 : 'Balanced positional shape maximizing field coverage and passing options.'}
             </p>

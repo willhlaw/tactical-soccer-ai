@@ -1,21 +1,20 @@
-import { AICoachMessage, Team, Player, FormationPreset, PositionRole } from '../types';
+import { AICoachMessage, Team, FormationPreset } from '../types';
 import { PHILOSOPHY_KNOWLEDGE } from './coachingKnowledge';
 
 export function processAICoachPrompt(
   userText: string,
   team: Team,
-  currentFormation: FormationPreset,
-  chatHistory: AICoachMessage[]
+  currentFormation: FormationPreset
 ): AICoachMessage {
   const lower = userText.toLowerCase();
-  const styleDetail = PHILOSOPHY_KNOWLEDGE[team.playingStyle] || PHILOSOPHY_KNOWLEDGE['coach-rory'];
+  const styleDetail = PHILOSOPHY_KNOWLEDGE[team.playingStyle] || PHILOSOPHY_KNOWLEDGE['youth-buildout'];
 
-  // Check for Coach Rory / Playing Style queries
-  if (lower.includes('rory') || lower.includes('coach rory') || lower.includes('playing style') || lower.includes('philosophy')) {
+  // Check for Playing Style queries
+  if (lower.includes('style') || lower.includes('playing style') || lower.includes('philosophy') || lower.includes('tactics')) {
     return {
       id: 'msg-' + Date.now(),
       sender: 'ai',
-      text: `⚽ **Coach Rory Tactical Philosophy Applied to ${team.name} (${team.format})**:\n\n` +
+      text: `⚽ **${styleDetail.name} Applied to ${team.name} (${team.format})**:\n\n` +
             `• **Build-Out Strategy**: ${styleDetail.buildUpStrategy}\n` +
             `• **Press Triggers**: ${styleDetail.defensivePressTrigger}\n` +
             `• **Recommended Formation**: **${styleDetail.keyFormations[team.format] || '2-3-1 / 3-2-3'}**\n\n` +
@@ -63,7 +62,7 @@ export function processAICoachPrompt(
       id: 'msg-' + Date.now(),
       sender: 'ai',
       text: `🎯 **Recommended Practice Plan (${team.ageGroup} - ${team.format})**:\n\n` +
-            `1. **Warm-up (10m)**: 3v2 Build-Out Rondo (Coach Rory Style) — focus on split passes to midfielders.\n` +
+            `1. **Warm-up (10m)**: 3v2 Build-Out Rondo — focus on split passes to midfielders.\n` +
             `2. **Main Drill (20m)**: 4v4 + 2 Neutral Battle Box — 1-2 touch limit to build spatial awareness.\n` +
             `3. **Scrimmage (15m)**: ${team.format} Conditioned Scrimmage — mandatory 3 passes before shooting.\n\n` +
             `You can share this animated drill plan directly with parents using the Share drawer!`,
@@ -78,7 +77,7 @@ export function processAICoachPrompt(
     text: `🧠 **Tactical AI Assistant (${styleDetail.name})**:\n\n` +
           `I am monitoring your ${team.format} roster (${team.name}). You can ask me to:\n` +
           `• Generate equal-minute sub plans for game day\n` +
-          `• Apply Coach Rory build-out & pressing tactics\n` +
+          `• Apply build-out & pressing tactics\n` +
           `• Create age-appropriate practice drills\n` +
           `• Update player profiles via voice or text`,
     timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })

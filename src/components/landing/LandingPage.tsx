@@ -1,7 +1,8 @@
-import React from 'react';
-import { Shield, Sparkles, Check, Play, Smartphone, WifiOff, Users, ArrowRight, Zap, Star } from 'lucide-react';
+import React, { useState } from 'react';
+import { Shield, Sparkles, Check, Play, Smartphone, WifiOff, Users, ArrowRight, Zap } from 'lucide-react';
 import { PitchCanvas } from '../tactics/PitchCanvas';
 import { DEMO_PLAYERS } from '../../services/storage';
+import { PitchNode, TacticalArrow } from '../../types';
 
 interface LandingPageProps {
   onLaunchApp: () => void;
@@ -9,26 +10,35 @@ interface LandingPageProps {
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp, onSelectProTier }) => {
-  const demoNodes = [
-    { id: 'd1', label: 'GK', role: 'GK' as const, x: 50, y: 88, team: 'home' as const },
-    { id: 'd2', label: 'LCB', role: 'LB' as const, x: 30, y: 72, team: 'home' as const },
-    { id: 'd3', label: 'RCB', role: 'RB' as const, x: 70, y: 72, team: 'home' as const },
-    { id: 'd4', label: 'LM', role: 'LM' as const, x: 20, y: 45, team: 'home' as const },
-    { id: 'd5', label: 'CM', role: 'CM' as const, x: 50, y: 48, team: 'home' as const },
-    { id: 'd6', label: 'RM', role: 'RM' as const, x: 80, y: 45, team: 'home' as const },
-    { id: 'd7', label: 'ST', role: 'ST' as const, x: 50, y: 20, team: 'home' as const },
-  ];
+  // Interactive Pitch Canvas State for Landing Page Hero Widget
+  const [nodes, setNodes] = useState<PitchNode[]>([
+    { id: 'd1', label: 'GK', role: 'GK', x: 50, y: 88, team: 'home', assignedPlayerId: 'p2' },
+    { id: 'd2', label: 'LCB', role: 'LB', x: 30, y: 72, team: 'home', assignedPlayerId: 'p4' },
+    { id: 'd3', label: 'RCB', role: 'RB', x: 70, y: 72, team: 'home', assignedPlayerId: 'p9' },
+    { id: 'd4', label: 'LM', role: 'LM', x: 20, y: 45, team: 'home', assignedPlayerId: 'p7' },
+    { id: 'd5', label: 'CM', role: 'CM', x: 50, y: 48, team: 'home', assignedPlayerId: 'p3' },
+    { id: 'd6', label: 'RM', role: 'RM', x: 80, y: 45, team: 'home', assignedPlayerId: 'p5' },
+    { id: 'd7', label: 'ST', role: 'ST', x: 50, y: 20, team: 'home', assignedPlayerId: 'p1' },
+  ]);
 
-  const demoArrows = [
-    { id: 'da1', startX: 50, startY: 88, endX: 70, endY: 72, type: 'pass' as const },
-    { id: 'da2', startX: 70, startY: 72, endX: 50, endY: 48, type: 'run' as const }
-  ];
+  const [arrows, setArrows] = useState<TacticalArrow[]>([
+    { id: 'da1', startX: 50, startY: 88, endX: 70, endY: 72, type: 'pass' },
+    { id: 'da2', startX: 70, startY: 72, endX: 50, endY: 48, type: 'run' }
+  ]);
 
   const playersMap = React.useMemo(() => {
     const map: Record<string, any> = {};
     DEMO_PLAYERS.forEach(p => { map[p.id] = p; });
     return map;
   }, []);
+
+  const handleNodeMove = (nodeId: string, newX: number, newY: number) => {
+    setNodes(prev => prev.map(n => n.id === nodeId ? { ...n, x: newX, y: newY } : n));
+  };
+
+  const handleAddArrow = (arrow: TacticalArrow) => {
+    setArrows(prev => [...prev, arrow]);
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-emerald-500 selection:text-white">
@@ -62,11 +72,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp, onSelectP
         <div className="space-y-6">
           <div className="inline-flex items-center space-x-2 px-3 py-1.5 bg-emerald-500/10 border border-emerald-500/30 rounded-full text-emerald-400 text-xs font-bold">
             <Sparkles className="w-4 h-4 text-amber-400" />
-            <span>Built for Rec, ADP, Travel &amp; High School Coaches</span>
+            <span>Built for Rec, Select, Travel &amp; High School Coaches</span>
           </div>
 
           <h1 className="text-4xl md:text-6xl font-black tracking-tight text-white leading-tight">
-            Soccer Tactics &amp; Lineups Powered by <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-amber-300">Coach Rory AI</span>
+            Soccer Tactics &amp; Lineups Powered by <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-amber-300">Pro Tactical AI</span>
           </h1>
 
           <p className="text-base md:text-lg text-slate-400 leading-relaxed max-w-xl">
@@ -101,15 +111,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp, onSelectP
           <div className="flex items-center justify-between px-2 text-xs">
             <span className="font-bold text-emerald-400 flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              Interactive Demo Pitch (Coach Rory 2-3-1)
+              Live Interactive Pitch (2-3-1 Build-Out Shape)
             </span>
-            <span className="text-slate-400 text-[10px]">Try dragging players!</span>
+            <span className="text-emerald-300 font-semibold bg-emerald-500/20 px-2 py-0.5 rounded text-[10px] border border-emerald-500/30">
+              ⚡ Drag players to test!
+            </span>
           </div>
 
           <PitchCanvas
-            nodes={demoNodes}
-            arrows={demoArrows}
+            nodes={nodes}
+            arrows={arrows}
             playersMap={playersMap}
+            onNodeMove={handleNodeMove}
+            onAddArrow={handleAddArrow}
           />
         </div>
       </section>
@@ -162,7 +176,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp, onSelectP
             <ul className="space-y-3 text-xs text-slate-300">
               <li className="flex items-center gap-2 font-semibold text-emerald-300"><Check className="w-4 h-4 text-emerald-400" /> Everything in Free</li>
               <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Unlimited Hands-Free AI Voice Assistant</li>
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Coach Rory Build-Up &amp; High Press Style</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Youth Build-Out &amp; High Press Style</li>
               <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Automated Fair Play Equal Minute Matrix</li>
               <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Firebase Multi-Team Cloud Sync</li>
             </ul>
@@ -179,7 +193,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp, onSelectP
 
       {/* Footer */}
       <footer className="border-t border-slate-900 py-8 text-center text-xs text-slate-500">
-        <p>&copy; {new Date().getFullYear()} TacticalSoccer AI. Created with Antigravity for @willhlawless.</p>
+        <p>&copy; {new Date().getFullYear()} TacticalSoccer AI. Created for @willhlaw.</p>
       </footer>
     </div>
   );

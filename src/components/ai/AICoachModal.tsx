@@ -15,7 +15,7 @@ export const AICoachModal: React.FC<AICoachModalProps> = ({ team, currentFormati
     {
       id: 'init-1',
       sender: 'ai',
-      text: `👋 **Hello Coach! I'm your AI Tactical Sidekick.**\n\nI'm set up with your **${team.name}** team (${team.format}, ${team.playingStyle === 'coach-rory' ? 'Coach Rory Youth Style' : team.playingStyle}).\n\nHow can I help you prepare today's match or practice?`,
+      text: `👋 **Hello Coach! I'm your AI Tactical Sidekick.**\n\nI'm set up with your **${team.name}** team (${team.format}, ${team.playingStyle === 'youth-buildout' ? 'Youth Development Style' : team.playingStyle}).\n\nHow can I help you prepare today's match or practice?`,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
   ]);
@@ -46,7 +46,7 @@ export const AICoachModal: React.FC<AICoachModalProps> = ({ team, currentFormati
 
     // Generate AI response
     setTimeout(() => {
-      const aiMsg = processAICoachPrompt(text, team, currentFormation, newHistory);
+      const aiMsg = processAICoachPrompt(text, team, currentFormation);
       setMessages(prev => [...prev, aiMsg]);
     }, 400);
   };
@@ -136,10 +136,10 @@ export const AICoachModal: React.FC<AICoachModalProps> = ({ team, currentFormati
         {/* Quick Prompt Chips */}
         <div className="p-2 bg-slate-900/80 border-t border-slate-800 flex items-center space-x-2 overflow-x-auto text-[11px]">
           <button
-            onClick={() => handleSendMessage("Coach Rory tactics for today's match?")}
+            onClick={() => handleSendMessage("Youth build-out tactics for today's match?")}
             className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-amber-300 rounded-lg whitespace-nowrap border border-amber-500/20"
           >
-            💡 Coach Rory Tactics
+            💡 Youth Build-Out Tactics
           </button>
           <button
             onClick={() => handleSendMessage("Generate equal minutes sub plan")}

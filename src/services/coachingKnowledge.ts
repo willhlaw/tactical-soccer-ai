@@ -11,16 +11,16 @@ export interface TacticalPhilosophyDetail {
 }
 
 export const PHILOSOPHY_KNOWLEDGE: Record<PlayingStyle, TacticalPhilosophyDetail> = {
-  'coach-rory': {
-    name: 'Coach Rory Youth Philosophy',
-    creator: 'Coach Rory Soccer',
+  'youth-buildout': {
+    name: 'Youth Build-Out & High Press',
+    creator: 'Youth Development Academy',
     tagline: 'Play-Practice-Play, Building Out, & Brave Decision Making',
     buildUpStrategy: 'Split center backs wide, goalkeeper acts as 11th outfield player. Midfield drops into half-spaces to create 3v2 build-out overloads.',
     defensivePressTrigger: 'Initiate high press on 4 visual triggers: 1) Opponent poor first touch, 2) Bouncing/weak pass, 3) Opponent back facing our goal, 4) Immediate counter-press upon loss.',
     keyFormations: {
       '5v5': '1-2-1 Diamond',
       '7v7': '2-3-1 (Build-out & Wing Width)',
-      '9v9': '3-2-3 (Coach Rory Favorite shape)',
+      '9v9': '3-2-3 (Balanced Build-out Shape)',
       '11v11': '4-3-3 (High Wingers)'
     },
     coachingRules: [
@@ -103,7 +103,7 @@ export const PHILOSOPHY_KNOWLEDGE: Record<PlayingStyle, TacticalPhilosophyDetail
 export const DEFAULT_DRILLS: Drill[] = [
   {
     id: 'drill-1',
-    title: 'Coach Rory 3v2 Build-Out Rondo',
+    title: '3v2 Build-Out Rondo',
     category: 'Passing',
     ageGroup: 'U9-U10',
     durationMinutes: 15,

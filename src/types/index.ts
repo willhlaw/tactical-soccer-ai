@@ -28,7 +28,7 @@ export interface Player {
 }
 
 export type PlayingStyle = 
-  | 'coach-rory'      // Build-up play, 3-2-3 / 2-3-1, trigger press, play-practice-play
+  | 'youth-buildout'   // Build-up play, 3-2-3 / 2-3-1, trigger press, play-practice-play
   | 'positional-play'  // Guardiola / Tiki-Taka half-space overloads
   | 'high-press'       // Gegenpressing rapid vertical transitions
   | 'low-block'        // Compact defensive rigor & counter-attacks

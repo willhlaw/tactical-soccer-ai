@@ -30,7 +30,7 @@ export const FORMATION_PRESETS: FormationPreset[] = [
   // --- 7v7 Formations (U9-U10) ---
   {
     id: '7v7-2-3-1',
-    name: '2-3-1 (Coach Rory Favorite)',
+    name: '2-3-1 (Build-Out Wide)',
     format: '7v7',
     nodes: [
       { role: 'GK', x: 50, y: 90, label: 'GK' },
@@ -60,7 +60,7 @@ export const FORMATION_PRESETS: FormationPreset[] = [
   // --- 9v9 Formations (U11-U12) ---
   {
     id: '9v9-3-2-3',
-    name: '3-2-3 (Coach Rory Favorite)',
+    name: '3-2-3 (Balanced Attack)',
     format: '9v9',
     nodes: [
       { role: 'GK', x: 50, y: 90, label: 'GK' },
