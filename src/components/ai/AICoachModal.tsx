@@ -174,7 +174,7 @@ export const AICoachModal: React.FC<AICoachModalProps> = ({ team, currentFormati
             value={inputText}
             onChange={(e) => setInputText(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-            placeholder={isListening ? "Listening on pitch..." : "Ask AI about lineups, Coach Rory tactics, drills..."}
+            placeholder={isListening ? "Listening on pitch..." : "Ask AI about lineups, build-out tactics, drills..."}
             className="flex-1 px-3 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
           />
 

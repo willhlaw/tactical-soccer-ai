@@ -52,7 +52,7 @@ export const RosterView: React.FC<RosterViewProps> = ({ team, onUpdateTeam }) =>
     setSelectedPlayer(newP);
   };
 
-  const activeStyleDetail = PHILOSOPHY_KNOWLEDGE[team.playingStyle] || PHILOSOPHY_KNOWLEDGE['coach-rory'];
+  const activeStyleDetail = PHILOSOPHY_KNOWLEDGE[team.playingStyle] || PHILOSOPHY_KNOWLEDGE['youth-buildout'];
 
   return (
     <div className="space-y-6">

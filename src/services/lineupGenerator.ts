@@ -129,7 +129,7 @@ function calculatePlayerPositionScore(player: Player, role: PositionRole, style:
     score += (attrs.defending * 3) + (attrs.stamina * 2);
   } else if (role.includes('CB') || role === 'LB' || role === 'RB') {
     score += (attrs.defending * 4) + (attrs.speed * 2) + (attrs.passing * 2);
-    if (style === 'youth-buildout') score += (attrs.passing * 3); // Coach Rory build-out from back demands passing CBs!
+    if (style === 'youth-buildout') score += (attrs.passing * 3); // Youth build-out from back demands passing CBs!
   } else if (role.includes('M') || role.includes('DM') || role.includes('AM')) {
     score += (attrs.passing * 4) + (attrs.stamina * 3) + (attrs.dribbling * 2);
   } else { // Forwards / Strikers
