@@ -17,10 +17,17 @@ export const PracticeHub: React.FC<PracticeHubProps> = ({ team }) => {
     `⏱️ *Duration*: ${selectedDrill.durationMinutes} mins\n\n` +
     `*Coaching Points*:\n` +
     selectedDrill.coachingPoints.map(p => `• ${p}`).join('\n') +
-    `\n\n🔗 View Animated Drill: https://tacticalsoccer.app/share/${selectedDrill.id}`;
+    `\n\n🔗 View Animated Drill: ${window.location.origin}/?drill=${selectedDrill.id}`;
 
   const handleCopyShareText = () => {
     navigator.clipboard.writeText(parentShareText);
+    if (navigator.share) {
+      navigator.share({
+        title: `${team.name} Practice Session`,
+        text: parentShareText,
+        url: `${window.location.origin}/?drill=${selectedDrill.id}`
+      }).catch(() => {});
+    }
     setCopiedText(true);
     setTimeout(() => setCopiedText(false), 2000);
   };
@@ -135,7 +142,7 @@ export const PracticeHub: React.FC<PracticeHubProps> = ({ team }) => {
             </div>
 
             <p className="text-xs text-slate-400">
-              Copy this formatted summary to share via WhatsApp, SMS, or Email with parents:
+              Copy this formatted summary to share via SMS, Email, or messaging apps with parents:
             </p>
 
             <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-xs font-mono text-slate-300 whitespace-pre-wrap max-h-56 overflow-y-auto">

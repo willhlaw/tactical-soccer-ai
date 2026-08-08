@@ -30,6 +30,13 @@ export default function App() {
       navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW registration failed:', err));
     }
 
+    // Handle share link URL parameters (e.g. ?drill=drill-1)
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('drill')) {
+      setCurrentView('app');
+      setActiveTab('practice');
+    }
+
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
