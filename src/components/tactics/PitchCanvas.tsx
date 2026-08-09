@@ -70,14 +70,20 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
     };
   }, [isPlayingAnimation]);
 
-  const handlePointerDown = (e: React.PointerEvent, node?: PitchNode, isBall = false) => {
-    if (!containerRef.current) return;
+  const calculateCanvasCoords = (e: React.PointerEvent) => {
+    if (!containerRef.current) return { x: 50, y: 50 };
     const rect = containerRef.current.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
+    const x = Math.max(2, Math.min(98, ((e.clientX - rect.left) / rect.width) * 100));
+    const y = Math.max(2, Math.min(98, ((e.clientY - rect.top) / rect.height) * 100));
+    return { x, y };
+  };
+
+  const handlePointerDown = (e: React.PointerEvent, node?: PitchNode, isBall = false) => {
+    const { x, y } = calculateCanvasCoords(e);
 
     if (isBall && onBallMove) {
       setIsDraggingBall(true);
+      onBallMove(x, y);
       e.stopPropagation();
     } else if (isDrawingArrow) {
       setDrawingStart({ x, y });
@@ -89,10 +95,7 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
-    if (!containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    const x = Math.max(2, Math.min(98, ((e.clientX - rect.left) / rect.width) * 100));
-    const y = Math.max(2, Math.min(98, ((e.clientY - rect.top) / rect.height) * 100));
+    const { x, y } = calculateCanvasCoords(e);
 
     if (isDraggingBall && onBallMove) {
       onBallMove(x, y);
@@ -142,6 +145,7 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
       ref={containerRef}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
       onPointerDown={(e) => handlePointerDown(e)}
       className={`relative w-full bg-emerald-900 overflow-hidden shadow-2xl border-4 border-emerald-950 select-none touch-none pitch-bg pitch-stripe transition-all duration-300 ${
         isFullscreen
@@ -220,9 +224,13 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
         return (
           <div
             key={node.id}
-            onPointerDown={(e) => handlePointerDown(e, node)}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+              handlePointerDown(e, node);
+            }}
             style={{ left: `${node.x}%`, top: `${node.y}%` }}
-            className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing transition-transform duration-75 ${
+            className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing transition-transform duration-75 touch-none ${
               isSelected ? 'scale-125 z-30' : 'z-20 hover:scale-110'
             }`}
           >
@@ -267,9 +275,13 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
         return (
           <div
             key={node.id}
-            onPointerDown={(e) => handlePointerDown(e, node)}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+              handlePointerDown(e, node);
+            }}
             style={{ left: `${currentX}%`, top: `${currentY}%` }}
-            className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing transition-transform duration-75 ${
+            className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing transition-transform duration-75 touch-none ${
               isSelected ? 'scale-125 z-30' : 'z-20 hover:scale-110'
             }`}
           >
@@ -294,16 +306,25 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
         );
       })}
 
-      {/* Interactive Soccer Ball Node ⚽ */}
+      {/* Interactive Soccer Ball Node ⚽ (Optimized Pointer Capture & 48px Hit Box) */}
       <div
-        onPointerDown={(e) => handlePointerDown(e, undefined, true)}
+        onPointerDown={(e) => {
+          e.stopPropagation();
+          (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+          handlePointerDown(e, undefined, true);
+        }}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
         style={{ left: `${animatedBallX}%`, top: `${animatedBallY}%` }}
-        className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing z-40 transition-transform duration-75 ${
-          isDraggingBall ? 'scale-125 ring-4 ring-amber-400 rounded-full' : 'hover:scale-125'
+        className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing z-50 p-2 touch-none select-none transition-transform duration-75 ${
+          isDraggingBall ? 'scale-125' : 'hover:scale-125'
         }`}
-        title="Soccer Ball (Draggable)"
+        title="Soccer Ball ⚽ (Draggable anywhere on pitch)"
       >
-        <div className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-white text-slate-950 flex items-center justify-center text-lg md:text-2xl shadow-2xl border-2 border-slate-950 ring-2 ring-amber-400">
+        <div className={`w-10 h-10 md:w-12 md:h-12 rounded-full bg-white text-slate-950 flex items-center justify-center text-xl md:text-2xl shadow-2xl border-2 border-slate-950 ring-4 ${
+          isDraggingBall ? 'ring-amber-400 scale-110 shadow-amber-500/50' : 'ring-amber-400/80'
+        }`}>
           ⚽
         </div>
       </div>
