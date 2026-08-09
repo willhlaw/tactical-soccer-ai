@@ -52,7 +52,7 @@ export interface PitchNode {
   x: number; // 0 - 100 percentage
   y: number; // 0 - 100 percentage
   assignedPlayerId?: string;
-  team: 'home' | 'away';
+  team: 'home' | 'away' | 'third';
 }
 
 export interface TacticalArrow {

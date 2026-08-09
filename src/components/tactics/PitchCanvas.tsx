@@ -12,11 +12,13 @@ interface PitchCanvasProps {
   isPlayingAnimation?: boolean;
   isFullscreen?: boolean;
 
-  // Ball & Opposition props
+  // Ball, Opposition & 3rd Team props
   ballPos?: { x: number; y: number };
   onBallMove?: (x: number, y: number) => void;
   awayNodes?: PitchNode[];
   onAwayNodeMove?: (nodeId: string, newX: number, newY: number) => void;
+  thirdNodes?: PitchNode[];
+  onThirdNodeMove?: (nodeId: string, newX: number, newY: number) => void;
 }
 
 export const PitchCanvas: React.FC<PitchCanvasProps> = ({
@@ -32,7 +34,9 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
   ballPos = { x: 50, y: 50 },
   onBallMove,
   awayNodes = [],
-  onAwayNodeMove
+  onAwayNodeMove,
+  thirdNodes = [],
+  onThirdNodeMove
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
@@ -101,8 +105,11 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
       onBallMove(x, y);
     } else if (draggedNodeId) {
       const isAway = awayNodes.some(n => n.id === draggedNodeId);
+      const isThird = thirdNodes.some(n => n.id === draggedNodeId);
       if (isAway && onAwayNodeMove) {
         onAwayNodeMove(draggedNodeId, x, y);
+      } else if (isThird && onThirdNodeMove) {
+        onThirdNodeMove(draggedNodeId, x, y);
       } else if (onNodeMove) {
         onNodeMove(draggedNodeId, x, y);
       }
@@ -218,7 +225,35 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
         )}
       </svg>
 
-      {/* Opposition Nodes Layer (Away Team - Red) */}
+      {/* 3rd Team Nodes Layer (Team C / Neutrals - Gold 🟡) */}
+      {thirdNodes.map(node => {
+        const isSelected = draggedNodeId === node.id;
+        return (
+          <div
+            key={node.id}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+              handlePointerDown(e, node);
+            }}
+            style={{ left: `${node.x}%`, top: `${node.y}%` }}
+            className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing transition-transform duration-75 touch-none ${
+              isSelected ? 'scale-125 z-35' : 'z-25 hover:scale-110'
+            }`}
+          >
+            <div className="relative group flex flex-col items-center">
+              <div className="w-9 h-9 md:w-11 md:h-11 rounded-full bg-amber-400 border-2 border-slate-950 shadow-xl flex items-center justify-center font-black text-slate-950 text-xs ring-4 ring-amber-950/40">
+                {node.label}
+              </div>
+              <div className="mt-1 px-1.5 py-0.5 bg-amber-950/90 text-amber-200 text-[9px] md:text-[10px] rounded font-semibold whitespace-nowrap border border-amber-500/40">
+                NEUTRAL ({node.role})
+              </div>
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Opposition Nodes Layer (Away Team B - Red 🔴) */}
       {awayNodes.map(node => {
         const isSelected = draggedNodeId === node.id;
         return (
@@ -246,7 +281,7 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
         );
       })}
 
-      {/* Home Players / Nodes Layer */}
+      {/* Home Players / Nodes Layer (Team A - Royal Blue 🔵) */}
       {nodes.map(node => {
         const player = node.assignedPlayerId ? playersMap[node.assignedPlayerId] : null;
         const isSelected = draggedNodeId === node.id;
@@ -306,7 +341,7 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
         );
       })}
 
-      {/* Interactive Soccer Ball Node ⚽ (Optimized Pointer Capture & 48px Hit Box) */}
+      {/* Interactive Soccer Ball Node ⚽ */}
       <div
         onPointerDown={(e) => {
           e.stopPropagation();

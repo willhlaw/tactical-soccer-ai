@@ -31,6 +31,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
   const [isDrillMode, setIsDrillMode] = useState<boolean>(false);
   const [homeCount, setHomeCount] = useState<number>(3);
   const [awayCount, setAwayCount] = useState<number>(2);
+  const [thirdCount, setThirdCount] = useState<number>(0);
 
   // Initialize home pitch nodes
   const [nodes, setNodes] = useState<PitchNode[]>(() => {
@@ -51,7 +52,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
   // Clean canvas default (no initial lines)
   const [arrows, setArrows] = useState<TacticalArrow[]>([]);
 
-  // Opposition Team nodes state (Red team)
+  // Opposition Team B nodes state (Red team)
   const [showOpposition, setShowOpposition] = useState<boolean>(false);
   const [awayNodes, setAwayNodes] = useState<PitchNode[]>([
     { id: 'away-1', label: 'A1', role: 'GK', x: 50, y: 10, team: 'away' },
@@ -63,14 +64,17 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
     { id: 'away-7', label: 'A7', role: 'ST', x: 50, y: 75, team: 'away' },
   ]);
 
+  // 3rd Team C nodes state (Gold/Amber Neutrals / 3rd Team)
+  const [thirdNodes, setThirdNodes] = useState<PitchNode[]>([]);
+
   const [isDrawingArrow, setIsDrawingArrow] = useState(false);
   const [arrowType, setArrowType] = useState<'pass' | 'run' | 'dribble' | 'shot'>('pass');
   const [isPlayingAnimation, setIsPlayingAnimation] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
-  // Helper to generate drill layout based on custom player count
-  const generateDrillNodes = (hCount: number, aCount: number) => {
-    // Generate Home Nodes
+  // Helper to generate drill layout based on custom 3-team player counts
+  const generateDrillNodes = (hCount: number, aCount: number, tCount: number) => {
+    // Generate Home Nodes (Team A - Blue 🔵)
     const newHomeNodes: PitchNode[] = [];
     const baseRoles: PitchNode['role'][] = ['GK', 'ST', 'CM', 'LB', 'RB', 'LW', 'RW', 'CAM', 'CDM', 'CB', 'CB'];
     for (let i = 0; i < hCount; i++) {
@@ -87,7 +91,6 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
         x = i === 0 ? 30 : (i === 1 ? 70 : (i === 2 ? 30 : 70));
         y = i < 2 ? 70 : 45;
       } else {
-        // Fallback to selected formation layout or arc
         const presetNode = selectedFormation.nodes[i];
         x = presetNode ? presetNode.x : 20 + (i * 15) % 70;
         y = presetNode ? presetNode.y : 30 + (i * 10) % 50;
@@ -104,7 +107,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
       });
     }
 
-    // Generate Away Nodes
+    // Generate Away Nodes (Team B - Red 🔴)
     const newAwayNodes: PitchNode[] = [];
     for (let j = 0; j < aCount; j++) {
       let x = 50;
@@ -123,7 +126,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
 
       newAwayNodes.push({
         id: 'away-' + (j + 1),
-        label: `A${j + 1}`,
+        label: `B${j + 1}`,
         role: j === 0 ? 'CB' : 'CM',
         x,
         y,
@@ -131,14 +134,42 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
       });
     }
 
+    // Generate 3rd Team Nodes (Team C / Neutrals - Gold 🟡)
+    const newThirdNodes: PitchNode[] = [];
+    for (let k = 0; k < tCount; k++) {
+      let x = 50;
+      let y = 50;
+      if (tCount === 1) {
+        x = 50; y = 50;
+      } else if (tCount === 2) {
+        x = 50; y = k === 0 ? 30 : 70;
+      } else if (tCount === 3) {
+        x = k === 0 ? 15 : (k === 1 ? 85 : 50);
+        y = k === 0 ? 50 : (k === 1 ? 50 : 50);
+      } else {
+        x = 15 + (k * 22) % 75;
+        y = 20 + (k * 18) % 60;
+      }
+
+      newThirdNodes.push({
+        id: 'third-' + (k + 1),
+        label: `C${k + 1}`,
+        role: 'CM',
+        x,
+        y,
+        team: 'third'
+      });
+    }
+
     setNodes(newHomeNodes);
     setAwayNodes(newAwayNodes);
-    if (aCount > 0) setShowOpposition(true);
+    setThirdNodes(newThirdNodes);
+    if (aCount > 0 || tCount > 0) setShowOpposition(true);
   };
 
   // Dynamic reaction when 5v5 / 7v7 / 9v9 / 11v11 format changes in header
   useEffect(() => {
-    if (isDrillMode) return; // Keep drill count if in drill mode
+    if (isDrillMode) return;
 
     const available = getFormationsForFormat(team.format);
     let targetFormation = available[0] || FORMATION_PRESETS[4];
@@ -164,6 +195,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
       assignedPlayerId: team.roster[i]?.id,
       team: 'home'
     })));
+    setThirdNodes([]);
     setIsPlayingAnimation(false);
     setBallPos({ x: 50, y: 50 });
   }, [team.format, team.roster, team.id, team.preferredFormationId, isDrillMode]);
@@ -188,6 +220,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
       assignedPlayerId: team.roster[i]?.id,
       team: 'home'
     })));
+    setThirdNodes([]);
     if (onUpdateFormation) onUpdateFormation(f);
   };
 
@@ -200,25 +233,33 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
     }
   };
 
-  const handleApplyDrillPreset = (hCount: number, aCount: number) => {
+  const handleApplyDrillPreset = (hCount: number, aCount: number, tCount = 0) => {
     setIsDrillMode(true);
     setHomeCount(hCount);
     setAwayCount(aCount);
-    generateDrillNodes(hCount, aCount);
+    setThirdCount(tCount);
+    generateDrillNodes(hCount, aCount, tCount);
   };
 
   const handleUpdateHomeCount = (delta: number) => {
     const next = Math.max(1, Math.min(11, homeCount + delta));
     setHomeCount(next);
     setIsDrillMode(true);
-    generateDrillNodes(next, awayCount);
+    generateDrillNodes(next, awayCount, thirdCount);
   };
 
   const handleUpdateAwayCount = (delta: number) => {
     const next = Math.max(0, Math.min(11, awayCount + delta));
     setAwayCount(next);
     setIsDrillMode(true);
-    generateDrillNodes(homeCount, next);
+    generateDrillNodes(homeCount, next, thirdCount);
+  };
+
+  const handleUpdateThirdCount = (delta: number) => {
+    const next = Math.max(0, Math.min(11, thirdCount + delta));
+    setThirdCount(next);
+    setIsDrillMode(true);
+    generateDrillNodes(homeCount, awayCount, next);
   };
 
   const handleNodeMove = (id: string, newX: number, newY: number) => {
@@ -227,6 +268,10 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
 
   const handleAwayNodeMove = (id: string, newX: number, newY: number) => {
     setAwayNodes(prev => prev.map(n => n.id === id ? { ...n, x: newX, y: newY } : n));
+  };
+
+  const handleThirdNodeMove = (id: string, newX: number, newY: number) => {
+    setThirdNodes(prev => prev.map(n => n.id === id ? { ...n, x: newX, y: newY } : n));
   };
 
   const handleAddArrow = (arrow: TacticalArrow) => {
@@ -238,7 +283,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
     setBallPos({ x: 50, y: 50 });
     setArrows([]);
     if (isDrillMode) {
-      generateDrillNodes(homeCount, awayCount);
+      generateDrillNodes(homeCount, awayCount, thirdCount);
     } else {
       setNodes(selectedFormation.nodes.map((n, i) => ({
         id: 'node-' + i,
@@ -249,6 +294,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
         assignedPlayerId: team.roster[i]?.id,
         team: 'home'
       })));
+      setThirdNodes([]);
     }
   };
 
@@ -273,7 +319,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
                 {team.name} Fullscreen Board ({team.format})
                 {isDrillMode ? (
                   <span className="px-2 py-0.5 bg-cyan-500/20 text-cyan-300 text-[10px] rounded-full border border-cyan-500/30 font-bold">
-                    🎯 Drill Mode ({homeCount}v{awayCount})
+                    🎯 Drill Mode ({homeCount}v{awayCount}{thirdCount > 0 ? `v${thirdCount}` : ''})
                   </span>
                 ) : isCurrentPreferred && (
                   <span className="px-2 py-0.5 bg-amber-500/20 text-amber-300 text-[10px] rounded-full border border-amber-500/30 font-medium">
@@ -322,6 +368,8 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
             onBallMove={(x, y) => setBallPos({ x, y })}
             awayNodes={showOpposition ? awayNodes : []}
             onAwayNodeMove={handleAwayNodeMove}
+            thirdNodes={showOpposition ? thirdNodes : []}
+            onThirdNodeMove={handleThirdNodeMove}
           />
         </div>
 
@@ -406,13 +454,13 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
               Tactics Board ({team.format})
               {isDrillMode && (
                 <span className="px-2.5 py-0.5 bg-cyan-500/20 text-cyan-300 text-xs rounded-full border border-cyan-500/30 font-bold flex items-center gap-1">
-                  <Target className="w-3 h-3" /> Drill Mode ({homeCount}v{awayCount})
+                  <Target className="w-3 h-3" /> Drill Mode ({homeCount}v{awayCount}{thirdCount > 0 ? `v${thirdCount}` : ''})
                 </span>
               )}
             </h2>
             <p className="text-xs text-slate-400">
               {isDrillMode
-                ? `Drill Mode active: Pick exact player count on the pitch at a time (${homeCount} Home vs ${awayCount} Away)`
+                ? `Drill Mode active: Pick exact player count on the pitch (${homeCount} Blue vs ${awayCount} Red ${thirdCount > 0 ? `vs ${thirdCount} Gold` : ''})`
                 : 'Drag players, opposition, or soccer ball ⚽ to demonstrate plays'}
             </p>
           </div>
@@ -433,7 +481,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
             <button
               onClick={() => {
                 setIsDrillMode(true);
-                generateDrillNodes(homeCount, awayCount);
+                generateDrillNodes(homeCount, awayCount, thirdCount);
               }}
               className={`px-3 py-1.5 rounded-lg text-xs font-bold transition flex items-center gap-1.5 ${
                 isDrillMode ? 'bg-cyan-500 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
@@ -454,46 +502,72 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
         </div>
       </div>
 
-      {/* Drill Mode Player Counter Toolbar */}
+      {/* Drill Mode 3-Team Player Counter Toolbar */}
       {isDrillMode ? (
         <div className="glass-panel p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 border-2 border-cyan-500/30 bg-cyan-950/20">
-          <div className="flex items-center space-x-6">
-            {/* Home Player Count Control */}
-            <div className="flex items-center space-x-3">
-              <span className="text-xs font-bold text-blue-300">Home Players:</span>
-              <div className="flex items-center space-x-2 bg-slate-950 p-1.5 rounded-xl border border-slate-800">
+          <div className="flex flex-wrap items-center gap-6">
+            {/* Team A (Home Blue) Player Count */}
+            <div className="flex items-center space-x-2">
+              <span className="text-xs font-bold text-blue-300 flex items-center gap-1">
+                <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span> Team A:
+              </span>
+              <div className="flex items-center space-x-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
                 <button
                   onClick={() => handleUpdateHomeCount(-1)}
-                  className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center text-xs active:scale-95"
+                  className="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center text-xs active:scale-95"
                 >
-                  <Minus className="w-3.5 h-3.5" />
+                  <Minus className="w-3 h-3" />
                 </button>
-                <span className="w-6 text-center font-black text-sm text-blue-400">{homeCount}</span>
+                <span className="w-5 text-center font-black text-xs text-blue-400">{homeCount}</span>
                 <button
                   onClick={() => handleUpdateHomeCount(1)}
-                  className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center text-xs active:scale-95"
+                  className="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center text-xs active:scale-95"
                 >
-                  <Plus className="w-3.5 h-3.5" />
+                  <Plus className="w-3 h-3" />
                 </button>
               </div>
             </div>
 
-            {/* Away Opposition Count Control */}
-            <div className="flex items-center space-x-3">
-              <span className="text-xs font-bold text-red-300">Away Defenders:</span>
-              <div className="flex items-center space-x-2 bg-slate-950 p-1.5 rounded-xl border border-slate-800">
+            {/* Team B (Away Red) Player Count */}
+            <div className="flex items-center space-x-2">
+              <span className="text-xs font-bold text-red-300 flex items-center gap-1">
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span> Team B:
+              </span>
+              <div className="flex items-center space-x-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
                 <button
                   onClick={() => handleUpdateAwayCount(-1)}
-                  className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center text-xs active:scale-95"
+                  className="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center text-xs active:scale-95"
                 >
-                  <Minus className="w-3.5 h-3.5" />
+                  <Minus className="w-3 h-3" />
                 </button>
-                <span className="w-6 text-center font-black text-sm text-red-400">{awayCount}</span>
+                <span className="w-5 text-center font-black text-xs text-red-400">{awayCount}</span>
                 <button
                   onClick={() => handleUpdateAwayCount(1)}
-                  className="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center text-xs active:scale-95"
+                  className="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center text-xs active:scale-95"
                 >
-                  <Plus className="w-3.5 h-3.5" />
+                  <Plus className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+
+            {/* Team C / 3rd Team (Neutrals Gold) Player Count */}
+            <div className="flex items-center space-x-2">
+              <span className="text-xs font-bold text-amber-300 flex items-center gap-1">
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-400"></span> Team C (3rd):
+              </span>
+              <div className="flex items-center space-x-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                <button
+                  onClick={() => handleUpdateThirdCount(-1)}
+                  className="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center text-xs active:scale-95"
+                >
+                  <Minus className="w-3 h-3" />
+                </button>
+                <span className="w-5 text-center font-black text-xs text-amber-400">{thirdCount}</span>
+                <button
+                  onClick={() => handleUpdateThirdCount(1)}
+                  className="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center text-xs active:scale-95"
+                >
+                  <Plus className="w-3 h-3" />
                 </button>
               </div>
             </div>
@@ -501,19 +575,20 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
 
           {/* Quick Drill Presets */}
           <div className="flex items-center space-x-2 overflow-x-auto">
-            <span className="text-[11px] text-slate-400 font-semibold mr-1">Quick Presets:</span>
+            <span className="text-[11px] text-slate-400 font-semibold mr-1">Presets:</span>
             {[
-              { label: '1v1', h: 1, a: 1 },
-              { label: '2v1 Overload', h: 2, a: 1 },
-              { label: '3v2 Counter', h: 3, a: 2 },
-              { label: '4v2 Rondo', h: 4, a: 2 },
-              { label: '4v4 Small Game', h: 4, a: 4 },
+              { label: '1v1', h: 1, a: 1, t: 0 },
+              { label: '2v1 Overload', h: 2, a: 1, t: 0 },
+              { label: '3v2 Counter', h: 3, a: 2, t: 0 },
+              { label: '4v2 Rondo', h: 4, a: 2, t: 0 },
+              { label: '3v3v3 (3 Teams)', h: 3, a: 3, t: 3 },
+              { label: '4v4+3 Neutral', h: 4, a: 4, t: 3 },
             ].map(preset => (
               <button
                 key={preset.label}
-                onClick={() => handleApplyDrillPreset(preset.h, preset.a)}
+                onClick={() => handleApplyDrillPreset(preset.h, preset.a, preset.t)}
                 className={`px-3 py-1.5 rounded-xl text-xs font-bold transition border ${
-                  homeCount === preset.h && awayCount === preset.a
+                  homeCount === preset.h && awayCount === preset.a && thirdCount === preset.t
                     ? 'bg-cyan-500 text-slate-950 border-cyan-400 font-black shadow'
                     : 'bg-slate-950 text-slate-300 border-slate-800 hover:text-white'
                 }`}
@@ -594,6 +669,8 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
             onBallMove={(x, y) => setBallPos({ x, y })}
             awayNodes={showOpposition ? awayNodes : []}
             onAwayNodeMove={handleAwayNodeMove}
+            thirdNodes={showOpposition ? thirdNodes : []}
+            onThirdNodeMove={handleThirdNodeMove}
           />
 
           {/* Normal Mode Touch Control Bar */}
@@ -671,11 +748,11 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
 
           <div className="p-3 bg-emerald-950/40 rounded-xl border border-emerald-500/20 text-xs space-y-2">
             <div className="font-semibold text-emerald-300">
-              {isDrillMode ? `Drill Setup: ${homeCount}v${awayCount}` : `Active Formation: ${selectedFormation.name}`}
+              {isDrillMode ? `3-Team Drill: ${homeCount}v${awayCount}${thirdCount > 0 ? `v${thirdCount}` : ''}` : `Active Formation: ${selectedFormation.name}`}
             </div>
             <p className="text-slate-300 leading-relaxed">
               {isDrillMode
-                ? `Focuses on small-sided ${homeCount}v${awayCount} overload dynamics, quick passing under pressure, and spatial awareness.`
+                ? `Focuses on 3-color ${homeCount}v${awayCount}${thirdCount > 0 ? `v${thirdCount}` : ''} rondo & neutral player dynamics, rapid transition, and possession overloads.`
                 : team.playingStyle === 'youth-buildout'
                 ? 'Emphasizes split center backs, build-out through the goalkeeper, and aggressive trigger-based high pressing.'
                 : 'Balanced positional shape maximizing field coverage and passing options.'}
