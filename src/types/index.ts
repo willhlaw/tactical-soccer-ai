@@ -111,6 +111,25 @@ export interface Drill {
   isCustom?: boolean;
 }
 
+export interface TacticalScenario {
+  id: string;
+  title: string;
+  description?: string;
+  createdAt: string;
+  format: FormatType;
+  formationName: string;
+  isDrillMode: boolean;
+  homeCount: number;
+  awayCount: number;
+  thirdCount: number;
+  nodes: PitchNode[];
+  awayNodes: PitchNode[];
+  thirdNodes: PitchNode[];
+  arrows: TacticalArrow[];
+  cones: TacticalCone[];
+  ballPos: { x: number; y: number };
+}
+
 export interface AICoachMessage {
   id: string;
   sender: 'user' | 'ai';

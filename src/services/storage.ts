@@ -201,3 +201,41 @@ export function deleteLocalCustomDrill(drillId: string): void {
     console.error('Error deleting custom drill:', e);
   }
 }
+
+const SCENARIOS_STORAGE_KEY = 'tactical_soccer_scenarios_v1';
+
+export function getLocalScenarios(): any[] {
+  try {
+    const raw = localStorage.getItem(SCENARIOS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    console.error('Error reading scenarios:', e);
+    return [];
+  }
+}
+
+export function saveLocalScenario(scenario: any): void {
+  try {
+    const current = getLocalScenarios();
+    const idx = current.findIndex((s: any) => s.id === scenario.id);
+    let updated;
+    if (idx >= 0) {
+      updated = current.map((s: any, i: number) => i === idx ? scenario : s);
+    } else {
+      updated = [scenario, ...current];
+    }
+    localStorage.setItem(SCENARIOS_STORAGE_KEY, JSON.stringify(updated));
+  } catch (e) {
+    console.error('Error saving scenario:', e);
+  }
+}
+
+export function deleteLocalScenario(scenarioId: string): void {
+  try {
+    const current = getLocalScenarios();
+    const filtered = current.filter((s: any) => s.id !== scenarioId);
+    localStorage.setItem(SCENARIOS_STORAGE_KEY, JSON.stringify(filtered));
+  } catch (e) {
+    console.error('Error deleting scenario:', e);
+  }
+}

@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { PitchCanvas } from './PitchCanvas';
-import { Team, PitchNode, TacticalArrow, TacticalCone, FormationPreset } from '../../types';
+import { Team, PitchNode, TacticalArrow, TacticalCone, FormationPreset, TacticalScenario } from '../../types';
 import { FORMATION_PRESETS, getFormationsForFormat } from '../../services/formations';
-import { Play, Pause, RotateCcw, Trash2, Shield, Zap, Maximize2, Minimize2, PenTool, Users, Star, Plus, Minus, Target, Grid } from 'lucide-react';
+import { getLocalScenarios, saveLocalScenario, deleteLocalScenario } from '../../services/storage';
+import { SavedScenariosModal } from './SavedScenariosModal';
+import { Play, Pause, RotateCcw, Trash2, Shield, Zap, Maximize2, Minimize2, PenTool, Users, Star, Plus, Minus, Target, Grid, Save, Folder, Check, X } from 'lucide-react';
 
 interface TacticsBoardProps {
   team: Team;
@@ -37,6 +39,14 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
   const [cones, setCones] = useState<TacticalCone[]>([]);
   const [isPlacingCone, setIsPlacingCone] = useState<boolean>(false);
   const [coneColor, setConeColor] = useState<'orange' | 'yellow' | 'blue' | 'red'>('orange');
+
+  // Saved Scenarios State 📁
+  const [scenarios, setScenarios] = useState<TacticalScenario[]>(() => getLocalScenarios());
+  const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
+  const [isScenariosLibraryOpen, setIsScenariosLibraryOpen] = useState<boolean>(false);
+  const [scenarioTitleInput, setScenarioTitleInput] = useState<string>('');
+  const [scenarioDescInput, setScenarioDescInput] = useState<string>('');
+  const [savedSuccessBanner, setSavedSuccessBanner] = useState<boolean>(false);
 
   // Initialize home pitch nodes
   const [nodes, setNodes] = useState<PitchNode[]>(() => {
@@ -79,23 +89,15 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
 
   // Helper to generate drill layout based on custom 3-team player counts
   const generateDrillNodes = (hCount: number, aCount: number, tCount: number) => {
-    // Generate Home Nodes (Team A - Blue 🔵)
     const newHomeNodes: PitchNode[] = [];
     const baseRoles: PitchNode['role'][] = ['GK', 'ST', 'CM', 'LB', 'RB', 'LW', 'RW', 'CAM', 'CDM', 'CB', 'CB'];
     for (let i = 0; i < hCount; i++) {
-      let x = 50;
-      let y = 50;
-      if (hCount === 1) {
-        x = 50; y = 70;
-      } else if (hCount === 2) {
-        x = i === 0 ? 35 : 65; y = 65;
-      } else if (hCount === 3) {
-        x = i === 0 ? 50 : (i === 1 ? 30 : 70);
-        y = i === 0 ? 75 : 55;
-      } else if (hCount === 4) {
-        x = i === 0 ? 30 : (i === 1 ? 70 : (i === 2 ? 30 : 70));
-        y = i < 2 ? 70 : 45;
-      } else {
+      let x = 50; let y = 50;
+      if (hCount === 1) { x = 50; y = 70; }
+      else if (hCount === 2) { x = i === 0 ? 35 : 65; y = 65; }
+      else if (hCount === 3) { x = i === 0 ? 50 : (i === 1 ? 30 : 70); y = i === 0 ? 75 : 55; }
+      else if (hCount === 4) { x = i === 0 ? 30 : (i === 1 ? 70 : (i === 2 ? 30 : 70)); y = i < 2 ? 70 : 45; }
+      else {
         const presetNode = selectedFormation.nodes[i];
         x = presetNode ? presetNode.x : 20 + (i * 15) % 70;
         y = presetNode ? presetNode.y : 30 + (i * 10) % 50;
@@ -105,63 +107,42 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
         id: 'node-' + i,
         label: `${i + 1}`,
         role: baseRoles[i] || 'CM',
-        x,
-        y,
+        x, y,
         assignedPlayerId: team.roster[i]?.id,
         team: 'home'
       });
     }
 
-    // Generate Away Nodes (Team B - Red 🔴)
     const newAwayNodes: PitchNode[] = [];
     for (let j = 0; j < aCount; j++) {
-      let x = 50;
-      let y = 35;
-      if (aCount === 1) {
-        x = 50; y = 35;
-      } else if (aCount === 2) {
-        x = j === 0 ? 38 : 62; y = 40;
-      } else if (aCount === 3) {
-        x = j === 0 ? 50 : (j === 1 ? 30 : 70);
-        y = j === 0 ? 25 : 42;
-      } else {
-        x = 25 + (j * 20) % 65;
-        y = 25 + (j * 12) % 45;
-      }
+      let x = 50; let y = 35;
+      if (aCount === 1) { x = 50; y = 35; }
+      else if (aCount === 2) { x = j === 0 ? 38 : 62; y = 40; }
+      else if (aCount === 3) { x = j === 0 ? 50 : (j === 1 ? 30 : 70); y = j === 0 ? 25 : 42; }
+      else { x = 25 + (j * 20) % 65; y = 25 + (j * 12) % 45; }
 
       newAwayNodes.push({
         id: 'away-' + (j + 1),
         label: `B${j + 1}`,
         role: j === 0 ? 'CB' : 'CM',
-        x,
-        y,
+        x, y,
         team: 'away'
       });
     }
 
-    // Generate 3rd Team Nodes (Team C / Neutrals - Gold 🟡)
     const newThirdNodes: PitchNode[] = [];
     for (let k = 0; k < tCount; k++) {
-      let x = 50;
-      let y = 50;
-      if (tCount === 1) {
-        x = 50; y = 50;
-      } else if (tCount === 2) {
-        x = 50; y = k === 0 ? 30 : 70;
-      } else if (tCount === 3) {
-        x = k === 0 ? 15 : (k === 1 ? 85 : 50);
-        y = k === 0 ? 50 : (k === 1 ? 50 : 50);
-      } else {
-        x = 15 + (k * 22) % 75;
-        y = 20 + (k * 18) % 60;
-      }
+      let x = 50; let y = 50;
+      if (tCount === 1) { x = 50; y = 50; }
+      else if (tCount === 2) { x = 50; y = k === 0 ? 30 : 70; }
+      else if (tCount === 3) { x = k === 0 ? 15 : (k === 1 ? 85 : 50); y = 50; }
+      else { x = 15 + (k * 22) % 75; y = 20 + (k * 18) % 60; }
 
       newThirdNodes.push({
         id: 'third-' + (k + 1),
         label: `C${k + 1}`,
         role: 'CM',
-        x,
-        y,
+        x, y,
         team: 'third'
       });
     }
@@ -205,6 +186,70 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
 
   const handleClearCones = () => {
     setCones([]);
+  };
+
+  // Scenario Handlers 📁
+  const handleOpenSaveModal = () => {
+    const defaultTitle = isDrillMode
+      ? `${homeCount}v${awayCount}${thirdCount > 0 ? `v${thirdCount}` : ''} Drill Setup`
+      : `${selectedFormation.name} Setup`;
+    setScenarioTitleInput(defaultTitle);
+    setScenarioDescInput('');
+    setIsSaveModalOpen(true);
+  };
+
+  const handleConfirmSaveScenario = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!scenarioTitleInput.trim()) return;
+
+    const newScenario: TacticalScenario = {
+      id: 'scenario-' + Date.now(),
+      title: scenarioTitleInput.trim(),
+      description: scenarioDescInput.trim(),
+      createdAt: new Date().toISOString(),
+      format: team.format,
+      formationName: selectedFormation.name,
+      isDrillMode,
+      homeCount,
+      awayCount,
+      thirdCount,
+      nodes: JSON.parse(JSON.stringify(nodes)),
+      awayNodes: JSON.parse(JSON.stringify(awayNodes)),
+      thirdNodes: JSON.parse(JSON.stringify(thirdNodes)),
+      arrows: JSON.parse(JSON.stringify(arrows)),
+      cones: JSON.parse(JSON.stringify(cones)),
+      ballPos: { ...ballPos }
+    };
+
+    saveLocalScenario(newScenario);
+    setScenarios(prev => [newScenario, ...prev]);
+    setIsSaveModalOpen(false);
+    setSavedSuccessBanner(true);
+    setTimeout(() => setSavedSuccessBanner(false), 3000);
+  };
+
+  const handleLoadScenario = (sc: TacticalScenario) => {
+    setIsDrillMode(sc.isDrillMode);
+    if (sc.isDrillMode) {
+      setHomeCount(sc.homeCount || 3);
+      setAwayCount(sc.awayCount || 2);
+      setThirdCount(sc.thirdCount || 0);
+    }
+    setNodes(sc.nodes);
+    setAwayNodes(sc.awayNodes || []);
+    setThirdNodes(sc.thirdNodes || []);
+    setArrows(sc.arrows || []);
+    setCones(sc.cones || []);
+    setBallPos(sc.ballPos || { x: 50, y: 50 });
+    if ((sc.awayNodes && sc.awayNodes.length > 0) || (sc.thirdNodes && sc.thirdNodes.length > 0)) {
+      setShowOpposition(true);
+    }
+    setIsScenariosLibraryOpen(false);
+  };
+
+  const handleDeleteScenario = (id: string) => {
+    deleteLocalScenario(id);
+    setScenarios(prev => prev.filter(s => s.id !== id));
   };
 
   // Dynamic reaction when 5v5 / 7v7 / 9v9 / 11v11 format changes in header
@@ -372,20 +417,15 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
 
           <div className="flex items-center space-x-3">
             <button
-              onClick={() => setShowOpposition(!showOpposition)}
-              className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border ${
-                showOpposition
-                  ? 'bg-red-600 text-white border-red-500 shadow-md shadow-red-600/30'
-                  : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-white'
-              }`}
+              onClick={handleOpenSaveModal}
+              className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-xl flex items-center gap-1.5 shadow-md shadow-emerald-500/20 active:scale-95"
             >
-              <Users className="w-4 h-4" />
-              <span>{showOpposition ? 'Opposition On' : '+ Opposition'}</span>
+              <Save className="w-4 h-4" /> Save Scenario
             </button>
 
             <button
               onClick={() => setIsFullscreen(false)}
-              className="px-4 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-xl flex items-center gap-1.5 shadow-lg shadow-emerald-500/20"
+              className="px-4 py-2 bg-slate-800 text-slate-300 hover:text-white font-bold text-xs rounded-xl border border-slate-700 transition flex items-center gap-1.5"
             >
               <Minimize2 className="w-4 h-4" /> Exit Fullscreen
             </button>
@@ -421,7 +461,6 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
 
         {/* Floating Bottom Touch Bar */}
         <div className="bg-slate-900/95 backdrop-blur p-3 rounded-2xl flex flex-wrap items-center justify-between gap-4 border border-slate-800 shadow-2xl">
-          {/* Vector & Cone Toolbar */}
           <div className="flex items-center space-x-2">
             <button
               onClick={() => { setIsDrawingArrow(!isDrawingArrow); setIsPlacingCone(false); }}
@@ -447,7 +486,6 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
             </button>
           </div>
 
-          {/* Action Touch Buttons */}
           <div className="flex items-center space-x-3">
             <button
               onClick={() => setIsPlayingAnimation(!isPlayingAnimation)}
@@ -484,7 +522,14 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
   // Normal In-Page Mode
   return (
     <div className="space-y-6">
-      {/* Mode Switcher Banner: Match Formation vs Custom Player Drill Mode */}
+      {savedSuccessBanner && (
+        <div className="p-3 bg-emerald-500/20 border border-emerald-500/40 rounded-2xl text-xs font-bold text-emerald-300 flex items-center gap-2 animate-bounce">
+          <Check className="w-4 h-4 text-emerald-400" />
+          Tactical Scenario saved successfully to your Saved Scenarios Library!
+        </div>
+      )}
+
+      {/* Top Banner: Mode & Save Controls */}
       <div className="glass-panel p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 border border-slate-800">
         <div className="flex items-center space-x-3">
           <div className="p-2.5 bg-emerald-500/20 text-emerald-400 rounded-xl border border-emerald-500/30">
@@ -507,8 +552,24 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
           </div>
         </div>
 
-        {/* Mode Toggle & Presets */}
+        {/* Save Scenario & Scenarios Library Buttons */}
         <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={handleOpenSaveModal}
+            className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-xl transition flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 active:scale-95"
+          >
+            <Save className="w-4 h-4" />
+            <span>💾 Save Scenario</span>
+          </button>
+
+          <button
+            onClick={() => setIsScenariosLibraryOpen(true)}
+            className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-bold text-xs rounded-xl border border-slate-700 transition flex items-center gap-1.5 active:scale-95"
+          >
+            <Folder className="w-4 h-4 text-emerald-400" />
+            <span>Saved Scenarios ({scenarios.length})</span>
+          </button>
+
           <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800">
             <button
               onClick={() => setIsDrillMode(false)}
@@ -871,6 +932,71 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
           </div>
         </div>
       </div>
+
+      {/* SAVE SCENARIO MODAL PROMPT */}
+      {isSaveModalOpen && (
+        <div className="fixed inset-0 z-[9999] bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <form onSubmit={handleConfirmSaveScenario} className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <Save className="w-5 h-5 text-emerald-400" /> Save Tactical Scenario
+              </h3>
+              <button type="button" onClick={() => setIsSaveModalOpen(false)} className="text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-300">Scenario Title *</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g., High-Press 3v2 Overload & Gate Drill"
+                value={scenarioTitleInput}
+                onChange={(e) => setScenarioTitleInput(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3.5 py-2.5 text-xs text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-300">Coaching Notes (Optional)</label>
+              <textarea
+                rows={2}
+                placeholder="e.g., Focus on quick split passes through yellow cone gates..."
+                value={scenarioDescInput}
+                onChange={(e) => setScenarioDescInput(e.target.value)}
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-xs text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              />
+            </div>
+
+            <div className="flex items-center justify-end space-x-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsSaveModalOpen(false)}
+                className="px-4 py-2.5 bg-slate-800 text-slate-300 text-xs font-bold rounded-xl"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-xl flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 active:scale-95"
+              >
+                <Save className="w-4 h-4" /> Save Scenario
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* SAVED SCENARIOS LIBRARY MODAL */}
+      {isScenariosLibraryOpen && (
+        <SavedScenariosModal
+          scenarios={scenarios}
+          onClose={() => setIsScenariosLibraryOpen(false)}
+          onLoadScenario={handleLoadScenario}
+          onDeleteScenario={handleDeleteScenario}
+        />
+      )}
     </div>
   );
 };
