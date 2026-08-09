@@ -4,7 +4,9 @@ import { Team, PitchNode, TacticalArrow, TacticalCone, FormationPreset, Tactical
 import { FORMATION_PRESETS, getFormationsForFormat } from '../../services/formations';
 import { getLocalScenarios, saveLocalScenario, deleteLocalScenario } from '../../services/storage';
 import { SavedScenariosModal } from './SavedScenariosModal';
-import { Play, Pause, RotateCcw, Trash2, Shield, Zap, Maximize2, Minimize2, PenTool, Users, Star, Plus, Minus, Target, Grid, Save, Folder, Check, X } from 'lucide-react';
+import { AIScenarioGeneratorModal } from './AIScenarioGeneratorModal';
+import { AIScenarioResult } from '../../services/aiScenarioEngine';
+import { Play, Pause, RotateCcw, Trash2, Shield, Zap, Maximize2, Minimize2, PenTool, Users, Star, Plus, Minus, Target, Grid, Save, Folder, Check, X, Sparkles } from 'lucide-react';
 
 interface TacticsBoardProps {
   team: Team;
@@ -45,10 +47,11 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
   const [isPlacingCone, setIsPlacingCone] = useState<boolean>(false);
   const [coneColor, setConeColor] = useState<'orange' | 'yellow' | 'blue' | 'red'>('orange');
 
-  // Saved Scenarios State 📁
+  // Saved Scenarios State 📁 & AI Generator State ✨
   const [scenarios, setScenarios] = useState<TacticalScenario[]>(() => getLocalScenarios());
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
   const [isScenariosLibraryOpen, setIsScenariosLibraryOpen] = useState<boolean>(false);
+  const [isAIGeneratorOpen, setIsAIGeneratorOpen] = useState<boolean>(false);
   const [scenarioTitleInput, setScenarioTitleInput] = useState<string>('');
   const [scenarioDescInput, setScenarioDescInput] = useState<string>('');
   const [savedSuccessBanner, setSavedSuccessBanner] = useState<boolean>(false);
@@ -97,7 +100,6 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
       if (targetCount === currentCount) return prev;
 
       if (targetCount > currentCount) {
-        // Add new ball
         const newBalls = [...prev];
         for (let i = currentCount; i < targetCount; i++) {
           const offsetX = 50 + (i % 2 === 0 ? (i * 6) : -(i * 6));
@@ -110,7 +112,6 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
         }
         return newBalls;
       } else {
-        // Remove last ball
         return prev.slice(0, targetCount);
       }
     });
@@ -118,6 +119,22 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
 
   const handleMultiBallMove = (ballId: string, newX: number, newY: number) => {
     setBalls(prev => prev.map(b => b.id === ballId ? { ...b, x: newX, y: newY } : b));
+  };
+
+  // AI Scenario Generator Handler ✨
+  const handleApplyAIScenario = (aiSc: AIScenarioResult) => {
+    setIsDrillMode(aiSc.isDrillMode);
+    setHomeCount(aiSc.homeCount);
+    setAwayCount(aiSc.awayCount);
+    setThirdCount(aiSc.thirdCount);
+    setNodes(aiSc.nodes);
+    setAwayNodes(aiSc.awayNodes);
+    setThirdNodes(aiSc.thirdNodes);
+    setArrows(aiSc.arrows);
+    setCones(aiSc.cones);
+    setBalls(aiSc.balls);
+    if (aiSc.awayCount > 0 || aiSc.thirdCount > 0) setShowOpposition(true);
+    setIsAIGeneratorOpen(false);
   };
 
   // Helper to generate drill layout based on custom 3-team player counts
@@ -152,7 +169,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
       if (aCount === 1) { x = 50; y = 35; }
       else if (aCount === 2) { x = j === 0 ? 38 : 62; y = 40; }
       else if (aCount === 3) { x = j === 0 ? 50 : (j === 1 ? 30 : 70); y = j === 0 ? 25 : 42; }
-      else { x = 25 + (j * 20) % 65; y = 25 + (j * 12) % 45; }
+      else { x = 25 + (j * 20) % 65; y = 25 + (j * 14) % 45; }
 
       newAwayNodes.push({
         id: 'away-' + (j + 1),
@@ -458,6 +475,13 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
           </div>
 
           <div className="flex items-center space-x-3">
+            <button
+              onClick={() => setIsAIGeneratorOpen(true)}
+              className="px-3.5 py-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-xs rounded-xl flex items-center gap-1.5 shadow-md shadow-orange-500/20 active:scale-95"
+            >
+              <Sparkles className="w-4 h-4 fill-current" /> AI Scenario
+            </button>
+
             {/* Multi-Ball Selector ⚽ */}
             <div className="flex items-center space-x-2 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800">
               <span className="text-xs font-bold text-slate-300 flex items-center gap-1">⚽ Balls:</span>
@@ -612,8 +636,16 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
           </div>
         </div>
 
-        {/* Multi-Ball Counter, Save Scenario & Scenarios Library Buttons */}
+        {/* AI Generator, Multi-Ball, Save Scenario & Scenarios Library Buttons */}
         <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={() => setIsAIGeneratorOpen(true)}
+            className="px-4 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-xs rounded-xl transition flex items-center gap-1.5 shadow-lg shadow-orange-500/20 active:scale-95"
+          >
+            <Sparkles className="w-4 h-4 fill-current" />
+            <span>✨ AI Generator</span>
+          </button>
+
           {/* Multi-Ball Selector ⚽ */}
           <div className="flex items-center space-x-2 bg-slate-950 px-3 py-2 rounded-xl border border-slate-800">
             <span className="text-xs font-bold text-slate-300 flex items-center gap-1">⚽ Balls:</span>
@@ -1010,6 +1042,15 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
           </div>
         </div>
       </div>
+
+      {/* AI SCENARIO GENERATOR MODAL ✨ */}
+      {isAIGeneratorOpen && (
+        <AIScenarioGeneratorModal
+          format={team.format}
+          onClose={() => setIsAIGeneratorOpen(false)}
+          onApplyScenario={handleApplyAIScenario}
+        />
+      )}
 
       {/* SAVE SCENARIO MODAL PROMPT */}
       {isSaveModalOpen && (
