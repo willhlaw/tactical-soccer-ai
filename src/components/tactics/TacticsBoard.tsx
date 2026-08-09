@@ -60,6 +60,24 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
   const [alwaysFullscreen, setAlwaysFullscreen] = useState<boolean>(() => getTacticsBoardFullscreenDefault());
   const [isFullscreen, setIsFullscreen] = useState<boolean>(() => getTacticsBoardFullscreenDefault());
 
+  // Bulletproof Exit Fullscreen Function (Guarantees user can always exit)
+  const handleExitFullscreen = () => {
+    setIsFullscreen(false);
+    setAlwaysFullscreen(false);
+    setTacticsBoardFullscreenDefault(false);
+  };
+
+  // Keyboard Escape Key Listener for Exit Fullscreen ⌨️
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' || e.key === 'Esc') {
+        handleExitFullscreen();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   // Initialize home pitch nodes
   const [nodes, setNodes] = useState<PitchNode[]>(() => {
     return selectedFormation.nodes.map((n, i) => ({
@@ -100,7 +118,11 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
     const next = !alwaysFullscreen;
     setAlwaysFullscreen(next);
     setTacticsBoardFullscreenDefault(next);
-    if (next) setIsFullscreen(true);
+    if (next) {
+      setIsFullscreen(true);
+    } else {
+      setIsFullscreen(false);
+    }
   };
 
   // Multi-Ball Handlers ⚽
@@ -463,8 +485,18 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
   if (isFullscreen) {
     return (
       <div className="fixed inset-0 z-[9999] bg-slate-950 w-screen h-screen p-4 flex flex-col justify-between select-none touch-none overflow-hidden">
+        {/* Top-Right Red Floating Quick Close Button (Guarantees user can always exit) */}
+        <button
+          onClick={handleExitFullscreen}
+          className="fixed top-6 right-6 z-[10001] px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-black text-xs rounded-2xl flex items-center gap-1.5 shadow-2xl ring-4 ring-red-950/60 active:scale-95 transition"
+          title="Exit Fullscreen (Esc)"
+        >
+          <X className="w-4 h-4" />
+          <span>Exit Fullscreen (Esc)</span>
+        </button>
+
         {/* Fullscreen Header Bar */}
-        <div className="flex items-center justify-between bg-slate-900/90 backdrop-blur p-3.5 rounded-2xl border border-slate-800">
+        <div className="flex items-center justify-between bg-slate-900/90 backdrop-blur p-3.5 pr-44 rounded-2xl border border-slate-800">
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-emerald-500 text-slate-950 font-black rounded-xl text-xs">
               TS
@@ -511,32 +543,11 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
               </button>
             </div>
 
-            {/* Always Fullscreen Default Toggle Setting 🖥️ */}
-            <button
-              onClick={handleToggleAlwaysFullscreen}
-              className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border ${
-                alwaysFullscreen
-                  ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 shadow-sm'
-                  : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-white'
-              }`}
-              title="Toggle setting: Always start Tactics Board in Fullscreen mode"
-            >
-              <Monitor className="w-4 h-4" />
-              <span>{alwaysFullscreen ? 'Always Fullscreen ON' : 'Default Fullscreen'}</span>
-            </button>
-
             <button
               onClick={handleOpenSaveModal}
               className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-xl flex items-center gap-1.5 shadow-md shadow-emerald-500/20 active:scale-95"
             >
               <Save className="w-4 h-4" /> Save Scenario
-            </button>
-
-            <button
-              onClick={() => setIsFullscreen(false)}
-              className="px-4 py-2 bg-slate-800 text-slate-300 hover:text-white font-bold text-xs rounded-xl border border-slate-700 transition flex items-center gap-1.5"
-            >
-              <Minimize2 className="w-4 h-4" /> Exit Fullscreen
             </button>
           </div>
         </div>
@@ -621,6 +632,14 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
               title="Clear Lines"
             >
               <Trash2 className="w-5 h-5" />
+            </button>
+
+            <button
+              onClick={handleExitFullscreen}
+              className="px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white font-black text-xs rounded-xl flex items-center gap-1.5 shadow-lg shadow-red-600/30 active:scale-95"
+            >
+              <X className="w-4 h-4" />
+              <span>Exit Fullscreen</span>
             </button>
           </div>
         </div>
@@ -744,10 +763,11 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
 
           <button
             onClick={() => setIsFullscreen(true)}
-            className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl border border-slate-700 transition"
+            className="p-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black rounded-xl border border-emerald-400 transition flex items-center gap-1.5 shadow-lg shadow-emerald-500/20"
             title="Fullscreen Pitch Mode"
           >
             <Maximize2 className="w-5 h-5" />
+            <span className="text-xs">Fullscreen</span>
           </button>
         </div>
       </div>
