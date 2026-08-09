@@ -239,3 +239,13 @@ export function deleteLocalScenario(scenarioId: string): void {
     console.error('Error deleting scenario:', e);
   }
 }
+
+const FULLSCREEN_DEFAULT_KEY = 'tactical_fullscreen_default_v1';
+
+export function getTacticsBoardFullscreenDefault(): boolean {
+  return localStorage.getItem(FULLSCREEN_DEFAULT_KEY) === 'true';
+}
+
+export function setTacticsBoardFullscreenDefault(enabled: boolean): void {
+  localStorage.setItem(FULLSCREEN_DEFAULT_KEY, enabled ? 'true' : 'false');
+}

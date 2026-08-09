@@ -2,11 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { PitchCanvas } from './PitchCanvas';
 import { Team, PitchNode, TacticalArrow, TacticalCone, FormationPreset, TacticalScenario } from '../../types';
 import { FORMATION_PRESETS, getFormationsForFormat } from '../../services/formations';
-import { getLocalScenarios, saveLocalScenario, deleteLocalScenario } from '../../services/storage';
+import { getLocalScenarios, saveLocalScenario, deleteLocalScenario, getTacticsBoardFullscreenDefault, setTacticsBoardFullscreenDefault } from '../../services/storage';
 import { SavedScenariosModal } from './SavedScenariosModal';
 import { AIScenarioGeneratorModal } from './AIScenarioGeneratorModal';
 import { AIScenarioResult } from '../../services/aiScenarioEngine';
-import { Play, Pause, RotateCcw, Trash2, Shield, Zap, Maximize2, Minimize2, PenTool, Users, Star, Plus, Minus, Target, Grid, Save, Folder, Check, X, Sparkles } from 'lucide-react';
+import { Play, Pause, RotateCcw, Trash2, Shield, Zap, Maximize2, Minimize2, PenTool, Users, Star, Plus, Minus, Target, Grid, Save, Folder, Check, X, Sparkles, Monitor } from 'lucide-react';
 
 interface TacticsBoardProps {
   team: Team;
@@ -56,6 +56,10 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
   const [scenarioDescInput, setScenarioDescInput] = useState<string>('');
   const [savedSuccessBanner, setSavedSuccessBanner] = useState<boolean>(false);
 
+  // Default Fullscreen Setting State 🖥️
+  const [alwaysFullscreen, setAlwaysFullscreen] = useState<boolean>(() => getTacticsBoardFullscreenDefault());
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(() => getTacticsBoardFullscreenDefault());
+
   // Initialize home pitch nodes
   const [nodes, setNodes] = useState<PitchNode[]>(() => {
     return selectedFormation.nodes.map((n, i) => ({
@@ -90,7 +94,14 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
   const [isDrawingArrow, setIsDrawingArrow] = useState(false);
   const [arrowType, setArrowType] = useState<'pass' | 'run' | 'dribble' | 'shot'>('pass');
   const [isPlayingAnimation, setIsPlayingAnimation] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Fullscreen Preference Setting Handler 🖥️
+  const handleToggleAlwaysFullscreen = () => {
+    const next = !alwaysFullscreen;
+    setAlwaysFullscreen(next);
+    setTacticsBoardFullscreenDefault(next);
+    if (next) setIsFullscreen(true);
+  };
 
   // Multi-Ball Handlers ⚽
   const handleUpdateBallCount = (delta: number) => {
@@ -168,7 +179,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
       let x = 50; let y = 35;
       if (aCount === 1) { x = 50; y = 35; }
       else if (aCount === 2) { x = j === 0 ? 38 : 62; y = 40; }
-      else if (aCount === 3) { x = j === 0 ? 50 : (j === 1 ? 30 : 70); y = j === 0 ? 25 : 42; }
+      else if (aCount === 3) { x = j === 0 ? 50 : (j === 1 ? 35 : 65); y = j === 0 ? 25 : 42; }
       else { x = 25 + (j * 20) % 65; y = 25 + (j * 14) % 45; }
 
       newAwayNodes.push({
@@ -500,6 +511,20 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
               </button>
             </div>
 
+            {/* Always Fullscreen Default Toggle Setting 🖥️ */}
+            <button
+              onClick={handleToggleAlwaysFullscreen}
+              className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border ${
+                alwaysFullscreen
+                  ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 shadow-sm'
+                  : 'bg-slate-950 text-slate-400 border-slate-800 hover:text-white'
+              }`}
+              title="Toggle setting: Always start Tactics Board in Fullscreen mode"
+            >
+              <Monitor className="w-4 h-4" />
+              <span>{alwaysFullscreen ? 'Always Fullscreen ON' : 'Default Fullscreen'}</span>
+            </button>
+
             <button
               onClick={handleOpenSaveModal}
               className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-xl flex items-center gap-1.5 shadow-md shadow-emerald-500/20 active:scale-95"
@@ -636,8 +661,21 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
           </div>
         </div>
 
-        {/* AI Generator, Multi-Ball, Save Scenario & Scenarios Library Buttons */}
+        {/* Always Fullscreen Setting, AI Generator, Multi-Ball, Save Scenario & Scenarios Library Buttons */}
         <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={handleToggleAlwaysFullscreen}
+            className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border ${
+              alwaysFullscreen
+                ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 shadow-sm'
+                : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+            }`}
+            title="Setting: Always open Tactics Board in Fullscreen mode"
+          >
+            <Monitor className="w-4 h-4" />
+            <span>{alwaysFullscreen ? 'Always Fullscreen ON' : 'Default Fullscreen'}</span>
+          </button>
+
           <button
             onClick={() => setIsAIGeneratorOpen(true)}
             className="px-4 py-2.5 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-400 hover:to-orange-400 text-slate-950 font-black text-xs rounded-xl transition flex items-center gap-1.5 shadow-lg shadow-orange-500/20 active:scale-95"
