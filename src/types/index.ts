@@ -128,6 +128,7 @@ export interface TacticalScenario {
   arrows: TacticalArrow[];
   cones: TacticalCone[];
   ballPos: { x: number; y: number };
+  balls?: Array<{ id: string; x: number; y: number }>;
 }
 
 export interface AICoachMessage {

@@ -12,9 +12,12 @@ interface PitchCanvasProps {
   isPlayingAnimation?: boolean;
   isFullscreen?: boolean;
 
-  // Ball, Opposition & 3rd Team props
+  // Multi-Ball & Opposition props ⚽
   ballPos?: { x: number; y: number };
   onBallMove?: (x: number, y: number) => void;
+  balls?: Array<{ id: string; x: number; y: number }>;
+  onMultiBallMove?: (ballId: string, x: number, y: number) => void;
+
   awayNodes?: PitchNode[];
   onAwayNodeMove?: (nodeId: string, newX: number, newY: number) => void;
   thirdNodes?: PitchNode[];
@@ -41,6 +44,8 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
   isFullscreen = false,
   ballPos = { x: 50, y: 50 },
   onBallMove,
+  balls = [],
+  onMultiBallMove,
   awayNodes = [],
   onAwayNodeMove,
   thirdNodes = [],
@@ -55,13 +60,19 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
   const [draggedConeId, setDraggedConeId] = useState<string | null>(null);
-  const [isDraggingBall, setIsDraggingBall] = useState<boolean>(false);
+  const [draggedBallId, setDraggedBallId] = useState<string | null>(null);
   const [drawingStart, setDrawingStart] = useState<{ x: number; y: number } | null>(null);
   const [currentMousePos, setCurrentMousePos] = useState<{ x: number; y: number } | null>(null);
   
   // Animation state: freeze progress on pause instead of resetting!
   const [animProgress, setAnimProgress] = useState<number>(0);
   const animProgressRef = useRef<number>(0);
+
+  // Normalize active balls list
+  const activeBalls = React.useMemo(() => {
+    if (balls && balls.length > 0) return balls;
+    return [{ id: 'ball-1', x: ballPos.x, y: ballPos.y }];
+  }, [balls, ballPos]);
 
   // 60fps Animation Loop with Pause Freeze
   useEffect(() => {
@@ -97,10 +108,20 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
     return { x, y };
   };
 
-  const handlePointerDown = (e: React.PointerEvent, node?: PitchNode, isBall = false, cone?: TacticalCone) => {
+  const handlePointerDown = (
+    e: React.PointerEvent,
+    node?: PitchNode,
+    targetBallId?: string,
+    cone?: TacticalCone
+  ) => {
     const { x, y } = calculateCanvasCoords(e);
 
-    if (cone && onConeMove) {
+    if (targetBallId) {
+      setDraggedBallId(targetBallId);
+      if (onMultiBallMove) onMultiBallMove(targetBallId, x, y);
+      else if (onBallMove) onBallMove(x, y);
+      e.stopPropagation();
+    } else if (cone && onConeMove) {
       setDraggedConeId(cone.id);
       e.stopPropagation();
     } else if (isPlacingCone && onAddCone) {
@@ -110,10 +131,6 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
         y,
         color: coneColor
       });
-    } else if (isBall && onBallMove) {
-      setIsDraggingBall(true);
-      onBallMove(x, y);
-      e.stopPropagation();
     } else if (isDrawingArrow) {
       setDrawingStart({ x, y });
       setCurrentMousePos({ x, y });
@@ -126,10 +143,11 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
   const handlePointerMove = (e: React.PointerEvent) => {
     const { x, y } = calculateCanvasCoords(e);
 
-    if (draggedConeId && onConeMove) {
+    if (draggedBallId) {
+      if (onMultiBallMove) onMultiBallMove(draggedBallId, x, y);
+      else if (onBallMove) onBallMove(x, y);
+    } else if (draggedConeId && onConeMove) {
       onConeMove(draggedConeId, x, y);
-    } else if (isDraggingBall && onBallMove) {
-      onBallMove(x, y);
     } else if (draggedNodeId) {
       const isAway = awayNodes.some(n => n.id === draggedNodeId);
       const isThird = thirdNodes.some(n => n.id === draggedNodeId);
@@ -158,22 +176,10 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
     }
     setDraggedNodeId(null);
     setDraggedConeId(null);
-    setIsDraggingBall(false);
+    setDraggedBallId(null);
     setDrawingStart(null);
     setCurrentMousePos(null);
   };
-
-  // Animate Ball along Pass/Shot Arrow if animation is active
-  let animatedBallX = ballPos.x;
-  let animatedBallY = ballPos.y;
-
-  if (isPlayingAnimation && animProgress > 0 && arrows.length > 0) {
-    const passArrow = arrows.find(a => a.type === 'pass' || a.type === 'shot') || arrows[0];
-    if (passArrow) {
-      animatedBallX = passArrow.startX + (passArrow.endX - passArrow.startX) * animProgress;
-      animatedBallY = passArrow.startY + (passArrow.endY - passArrow.startY) * animProgress;
-    }
-  }
 
   // Tactical Cone Color Map
   const coneColorStyles = {
@@ -274,7 +280,7 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
             onPointerDown={(e) => {
               e.stopPropagation();
               (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
-              handlePointerDown(e, undefined, false, cone);
+              handlePointerDown(e, undefined, undefined, cone);
             }}
             onDoubleClick={(e) => {
               e.stopPropagation();
@@ -287,7 +293,6 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
             title="Tactical Cone (Drag to move, double click to delete)"
           >
             <div className="relative group flex flex-col items-center">
-              {/* 3D Disc Cone Shape */}
               <div className={`w-5 h-5 md:w-6 md:h-6 rounded-full bg-gradient-to-tr ${colorStyle} border border-white/80 shadow-lg flex items-center justify-center ring-2`}>
                 <div className="w-1.5 h-1.5 rounded-full bg-slate-950/60"></div>
               </div>
@@ -412,28 +417,46 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
         );
       })}
 
-      {/* Interactive Soccer Ball Node ⚽ */}
-      <div
-        onPointerDown={(e) => {
-          e.stopPropagation();
-          (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
-          handlePointerDown(e, undefined, true);
-        }}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-        style={{ left: `${animatedBallX}%`, top: `${animatedBallY}%` }}
-        className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing z-50 p-2 touch-none select-none transition-transform duration-75 ${
-          isDraggingBall ? 'scale-125' : 'hover:scale-125'
-        }`}
-        title="Soccer Ball ⚽ (Draggable anywhere on pitch)"
-      >
-        <div className={`w-10 h-10 md:w-12 md:h-12 rounded-full bg-white text-slate-950 flex items-center justify-center text-xl md:text-2xl shadow-2xl border-2 border-slate-950 ring-4 ${
-          isDraggingBall ? 'ring-amber-400 scale-110 shadow-amber-500/50' : 'ring-amber-400/80'
-        }`}>
-          ⚽
-        </div>
-      </div>
+      {/* Interactive Multi-Ball Nodes Layer ⚽ (Supports N Draggable Soccer Balls) */}
+      {activeBalls.map((ball, idx) => {
+        let currentBallX = ball.x;
+        let currentBallY = ball.y;
+
+        if (idx === 0 && isPlayingAnimation && animProgress > 0 && arrows.length > 0) {
+          const passArrow = arrows.find(a => a.type === 'pass' || a.type === 'shot') || arrows[0];
+          if (passArrow) {
+            currentBallX = passArrow.startX + (passArrow.endX - passArrow.startX) * animProgress;
+            currentBallY = passArrow.startY + (passArrow.endY - passArrow.startY) * animProgress;
+          }
+        }
+
+        const isSelected = draggedBallId === ball.id;
+
+        return (
+          <div
+            key={ball.id}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
+              handlePointerDown(e, undefined, ball.id);
+            }}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            style={{ left: `${currentBallX}%`, top: `${currentBallY}%` }}
+            className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing z-50 p-2 touch-none select-none transition-transform duration-75 ${
+              isSelected ? 'scale-125' : 'hover:scale-125'
+            }`}
+            title={`Soccer Ball ${idx + 1} ⚽ (Draggable anywhere on pitch)`}
+          >
+            <div className={`w-10 h-10 md:w-12 md:h-12 rounded-full bg-white text-slate-950 flex items-center justify-center text-xl md:text-2xl shadow-2xl border-2 border-slate-950 ring-4 ${
+              isSelected ? 'ring-amber-400 scale-110 shadow-amber-500/50' : 'ring-amber-400/80'
+            }`}>
+              ⚽
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 };

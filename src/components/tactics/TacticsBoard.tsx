@@ -35,6 +35,11 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
   const [awayCount, setAwayCount] = useState<number>(2);
   const [thirdCount, setThirdCount] = useState<number>(0);
 
+  // Soccer Balls State ⚽ (Multi-ball selector)
+  const [balls, setBalls] = useState<Array<{ id: string; x: number; y: number }>>([
+    { id: 'ball-1', x: 50, y: 50 }
+  ]);
+
   // Tactical Cones State 🔶
   const [cones, setCones] = useState<TacticalCone[]>([]);
   const [isPlacingCone, setIsPlacingCone] = useState<boolean>(false);
@@ -61,9 +66,6 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
     }));
   });
 
-  // Interactive Soccer Ball state ⚽ (Defaults exact center circle)
-  const [ballPos, setBallPos] = useState<{ x: number; y: number }>({ x: 50, y: 50 });
-
   // Clean canvas default (no initial lines)
   const [arrows, setArrows] = useState<TacticalArrow[]>([]);
 
@@ -86,6 +88,37 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
   const [arrowType, setArrowType] = useState<'pass' | 'run' | 'dribble' | 'shot'>('pass');
   const [isPlayingAnimation, setIsPlayingAnimation] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Multi-Ball Handlers ⚽
+  const handleUpdateBallCount = (delta: number) => {
+    setBalls(prev => {
+      const currentCount = prev.length;
+      const targetCount = Math.max(1, Math.min(10, currentCount + delta));
+      if (targetCount === currentCount) return prev;
+
+      if (targetCount > currentCount) {
+        // Add new ball
+        const newBalls = [...prev];
+        for (let i = currentCount; i < targetCount; i++) {
+          const offsetX = 50 + (i % 2 === 0 ? (i * 6) : -(i * 6));
+          const offsetY = 50 + Math.floor(i / 2) * 8;
+          newBalls.push({
+            id: 'ball-' + (i + 1),
+            x: Math.max(10, Math.min(90, offsetX)),
+            y: Math.max(10, Math.min(90, offsetY))
+          });
+        }
+        return newBalls;
+      } else {
+        // Remove last ball
+        return prev.slice(0, targetCount);
+      }
+    });
+  };
+
+  const handleMultiBallMove = (ballId: string, newX: number, newY: number) => {
+    setBalls(prev => prev.map(b => b.id === ballId ? { ...b, x: newX, y: newY } : b));
+  };
 
   // Helper to generate drill layout based on custom 3-team player counts
   const generateDrillNodes = (hCount: number, aCount: number, tCount: number) => {
@@ -191,7 +224,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
   // Scenario Handlers 📁
   const handleOpenSaveModal = () => {
     const defaultTitle = isDrillMode
-      ? `${homeCount}v${awayCount}${thirdCount > 0 ? `v${thirdCount}` : ''} Drill Setup`
+      ? `${homeCount}v${awayCount}${thirdCount > 0 ? `v${thirdCount}` : ''} Drill Setup (${balls.length} Balls)`
       : `${selectedFormation.name} Setup`;
     setScenarioTitleInput(defaultTitle);
     setScenarioDescInput('');
@@ -218,7 +251,8 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
       thirdNodes: JSON.parse(JSON.stringify(thirdNodes)),
       arrows: JSON.parse(JSON.stringify(arrows)),
       cones: JSON.parse(JSON.stringify(cones)),
-      ballPos: { ...ballPos }
+      ballPos: balls[0] ? { x: balls[0].x, y: balls[0].y } : { x: 50, y: 50 },
+      balls: JSON.parse(JSON.stringify(balls))
     };
 
     saveLocalScenario(newScenario);
@@ -240,7 +274,11 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
     setThirdNodes(sc.thirdNodes || []);
     setArrows(sc.arrows || []);
     setCones(sc.cones || []);
-    setBallPos(sc.ballPos || { x: 50, y: 50 });
+    if (sc.balls && sc.balls.length > 0) {
+      setBalls(sc.balls);
+    } else {
+      setBalls([{ id: 'ball-1', x: sc.ballPos?.x || 50, y: sc.ballPos?.y || 50 }]);
+    }
     if ((sc.awayNodes && sc.awayNodes.length > 0) || (sc.thirdNodes && sc.thirdNodes.length > 0)) {
       setShowOpposition(true);
     }
@@ -282,7 +320,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
     })));
     setThirdNodes([]);
     setIsPlayingAnimation(false);
-    setBallPos({ x: 50, y: 50 });
+    setBalls([{ id: 'ball-1', x: 50, y: 50 }]);
   }, [team.format, team.roster, team.id, team.preferredFormationId, isDrillMode]);
 
   const playersMap = React.useMemo(() => {
@@ -365,8 +403,12 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
 
   const handleResetBoard = () => {
     setIsPlayingAnimation(false);
-    setBallPos({ x: 50, y: 50 });
     setArrows([]);
+    setBalls(prev => prev.map((b, idx) => ({
+      ...b,
+      x: 50 + (idx % 2 === 0 ? (idx * 5) : -(idx * 5)),
+      y: 50
+    })));
     if (isDrillMode) {
       generateDrillNodes(homeCount, awayCount, thirdCount);
     } else {
@@ -416,6 +458,24 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
           </div>
 
           <div className="flex items-center space-x-3">
+            {/* Multi-Ball Selector ⚽ */}
+            <div className="flex items-center space-x-2 bg-slate-950 px-3 py-1.5 rounded-xl border border-slate-800">
+              <span className="text-xs font-bold text-slate-300 flex items-center gap-1">⚽ Balls:</span>
+              <button
+                onClick={() => handleUpdateBallCount(-1)}
+                className="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center text-xs active:scale-95"
+              >
+                <Minus className="w-3 h-3" />
+              </button>
+              <span className="w-5 text-center font-black text-xs text-amber-400">{balls.length}</span>
+              <button
+                onClick={() => handleUpdateBallCount(1)}
+                className="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center text-xs active:scale-95"
+              >
+                <Plus className="w-3 h-3" />
+              </button>
+            </div>
+
             <button
               onClick={handleOpenSaveModal}
               className="px-3.5 py-2 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-xl flex items-center gap-1.5 shadow-md shadow-emerald-500/20 active:scale-95"
@@ -444,8 +504,8 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
             onAddArrow={handleAddArrow}
             isPlayingAnimation={isPlayingAnimation}
             isFullscreen={true}
-            ballPos={ballPos}
-            onBallMove={(x, y) => setBallPos({ x, y })}
+            balls={balls}
+            onMultiBallMove={handleMultiBallMove}
             awayNodes={showOpposition ? awayNodes : []}
             onAwayNodeMove={handleAwayNodeMove}
             thirdNodes={showOpposition ? thirdNodes : []}
@@ -546,14 +606,32 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
             </h2>
             <p className="text-xs text-slate-400">
               {isDrillMode
-                ? `Drill Mode active: Pick exact player count on the pitch (${homeCount} Blue vs ${awayCount} Red ${thirdCount > 0 ? `vs ${thirdCount} Gold` : ''})`
-                : 'Drag players, opposition, cones 🔶, or soccer ball ⚽ to demonstrate plays'}
+                ? `Drill Mode active: Pick exact player count (${homeCount} Blue vs ${awayCount} Red ${thirdCount > 0 ? `vs ${thirdCount} Gold` : ''}) & ${balls.length} Ball(s)`
+                : 'Drag players, opposition, cones 🔶, or soccer balls ⚽ to demonstrate plays'}
             </p>
           </div>
         </div>
 
-        {/* Save Scenario & Scenarios Library Buttons */}
+        {/* Multi-Ball Counter, Save Scenario & Scenarios Library Buttons */}
         <div className="flex flex-wrap items-center gap-3">
+          {/* Multi-Ball Selector ⚽ */}
+          <div className="flex items-center space-x-2 bg-slate-950 px-3 py-2 rounded-xl border border-slate-800">
+            <span className="text-xs font-bold text-slate-300 flex items-center gap-1">⚽ Balls:</span>
+            <button
+              onClick={() => handleUpdateBallCount(-1)}
+              className="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center text-xs active:scale-95"
+            >
+              <Minus className="w-3 h-3" />
+            </button>
+            <span className="w-5 text-center font-black text-xs text-amber-400">{balls.length}</span>
+            <button
+              onClick={() => handleUpdateBallCount(1)}
+              className="w-6 h-6 rounded bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center text-xs active:scale-95"
+            >
+              <Plus className="w-3 h-3" />
+            </button>
+          </div>
+
           <button
             onClick={handleOpenSaveModal}
             className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-xl transition flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 active:scale-95"
@@ -769,8 +847,8 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
             onAddArrow={handleAddArrow}
             isPlayingAnimation={isPlayingAnimation}
             isFullscreen={false}
-            ballPos={ballPos}
-            onBallMove={(x, y) => setBallPos({ x, y })}
+            balls={balls}
+            onMultiBallMove={handleMultiBallMove}
             awayNodes={showOpposition ? awayNodes : []}
             onAwayNodeMove={handleAwayNodeMove}
             thirdNodes={showOpposition ? thirdNodes : []}
@@ -914,7 +992,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
           <div className="space-y-2">
             <div className="text-xs font-semibold text-slate-400 flex items-center justify-between">
               <span>Position Assignments:</span>
-              <span className="text-[10px] text-amber-400">⚽ Ball &amp; 🔶 Cones Draggable</span>
+              <span className="text-[10px] text-amber-400">⚽ {balls.length} Ball(s) &amp; 🔶 Cones</span>
             </div>
             <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
               {nodes.map(n => {
