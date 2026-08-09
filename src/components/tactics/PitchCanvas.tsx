@@ -275,9 +275,12 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
           >
             <div className="relative group flex flex-col items-center">
               <div
-                style={{ backgroundColor: player?.avatarColor || (node.role === 'GK' ? '#fbbf24' : '#10b981') }}
-                className={`w-10 h-10 md:w-12 md:h-12 rounded-full border-2 border-white shadow-xl flex items-center justify-center font-bold text-white text-xs md:text-sm ring-4 ring-black/20 ${
-                  isPlayingAnimation ? 'ring-emerald-400/60 shadow-emerald-500/50 animate-pulse' : ''
+                className={`w-10 h-10 md:w-12 md:h-12 rounded-full border-2 border-white shadow-xl flex items-center justify-center font-bold text-white text-xs md:text-sm transition-transform ${
+                  node.role === 'GK'
+                    ? 'bg-blue-700 ring-4 ring-amber-400'
+                    : 'bg-blue-600 ring-4 ring-blue-900/60'
+                } ${
+                  isPlayingAnimation ? 'ring-cyan-400/80 shadow-cyan-500/60 animate-pulse' : ''
                 }`}
               >
                 {player ? `#${Number(player.number)}` : node.label}
