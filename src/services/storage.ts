@@ -163,3 +163,41 @@ export function getAIProStatus(): boolean {
 export function setAIProStatus(active: boolean): void {
   localStorage.setItem(PRO_STATUS_KEY, active ? 'true' : 'false');
 }
+
+const CUSTOM_DRILLS_STORAGE_KEY = 'tactical_soccer_custom_drills_v1';
+
+export function getLocalCustomDrills(): any[] {
+  try {
+    const raw = localStorage.getItem(CUSTOM_DRILLS_STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    console.error('Error reading custom drills:', e);
+    return [];
+  }
+}
+
+export function saveLocalCustomDrill(drill: any): void {
+  try {
+    const current = getLocalCustomDrills();
+    const idx = current.findIndex((d: any) => d.id === drill.id);
+    let updated;
+    if (idx >= 0) {
+      updated = current.map((d: any, i: number) => i === idx ? drill : d);
+    } else {
+      updated = [drill, ...current];
+    }
+    localStorage.setItem(CUSTOM_DRILLS_STORAGE_KEY, JSON.stringify(updated));
+  } catch (e) {
+    console.error('Error saving custom drill:', e);
+  }
+}
+
+export function deleteLocalCustomDrill(drillId: string): void {
+  try {
+    const current = getLocalCustomDrills();
+    const filtered = current.filter((d: any) => d.id !== drillId);
+    localStorage.setItem(CUSTOM_DRILLS_STORAGE_KEY, JSON.stringify(filtered));
+  } catch (e) {
+    console.error('Error deleting custom drill:', e);
+  }
+}

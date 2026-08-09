@@ -1,22 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Drill, Team, DrillKeyframe } from '../../types';
 import { DEFAULT_DRILLS } from '../../services/coachingKnowledge';
 import { generateAIDrill } from '../../services/aiEngine';
+import { getLocalCustomDrills, saveLocalCustomDrill, deleteLocalCustomDrill } from '../../services/storage';
 import { PitchCanvas } from '../tactics/PitchCanvas';
-import { BookOpen, Share2, Copy, Check, Sparkles, Play, Pause, Edit3, Plus, Bot, ChevronRight, X } from 'lucide-react';
+import { CustomDrillModal } from './CustomDrillModal';
+import { BookOpen, Share2, Copy, Check, Sparkles, Play, Pause, Plus, Bot, ChevronRight, X, PenTool, Trash2 } from 'lucide-react';
 
 interface PracticeHubProps {
   team: Team;
 }
 
 export const PracticeHub: React.FC<PracticeHubProps> = ({ team }) => {
-  const [drills, setDrills] = useState<Drill[]>(DEFAULT_DRILLS);
-  const [selectedDrill, setSelectedDrill] = useState<Drill>(DEFAULT_DRILLS[0]);
+  // Combine DEFAULT_DRILLS with local custom saved drills
+  const [drills, setDrills] = useState<Drill[]>(() => {
+    const customDrills = getLocalCustomDrills();
+    return [...customDrills, ...DEFAULT_DRILLS];
+  });
+
+  const [selectedDrill, setSelectedDrill] = useState<Drill>(() => drills[0] || DEFAULT_DRILLS[0]);
   const [activeKeyframeIndex, setActiveKeyframeIndex] = useState<number>(0);
   const [isPlayingAnimation, setIsPlayingAnimation] = useState<boolean>(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState<boolean>(false);
   const [isAIGeneratorOpen, setIsAIGeneratorOpen] = useState<boolean>(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
+  const [isCustomDrillModalOpen, setIsCustomDrillModalOpen] = useState<boolean>(false);
+  const [editingDrill, setEditingDrill] = useState<Drill | null>(null);
   const [aiPromptInput, setAiPromptInput] = useState<string>('');
   const [copiedText, setCopiedText] = useState<boolean>(false);
 
@@ -51,6 +59,7 @@ export const PracticeHub: React.FC<PracticeHubProps> = ({ team }) => {
   const handleGenerateAIDrill = (promptText: string) => {
     if (!promptText.trim()) return;
     const newDrill = generateAIDrill(promptText, team.ageGroup);
+    saveLocalCustomDrill(newDrill);
     setDrills(prev => [newDrill, ...prev]);
     setSelectedDrill(newDrill);
     setActiveKeyframeIndex(0);
@@ -58,10 +67,30 @@ export const PracticeHub: React.FC<PracticeHubProps> = ({ team }) => {
     setAiPromptInput('');
   };
 
-  const handleSaveEditedDrill = (updatedDrill: Drill) => {
-    setDrills(prev => prev.map(d => d.id === updatedDrill.id ? updatedDrill : d));
-    setSelectedDrill(updatedDrill);
-    setIsEditModalOpen(false);
+  const handleSaveCustomDrill = (newDrill: Drill) => {
+    saveLocalCustomDrill(newDrill);
+    setDrills(prev => {
+      const idx = prev.findIndex(d => d.id === newDrill.id);
+      if (idx >= 0) {
+        return prev.map((d, i) => i === idx ? newDrill : d);
+      }
+      return [newDrill, ...prev];
+    });
+    setSelectedDrill(newDrill);
+    setActiveKeyframeIndex(0);
+    setIsCustomDrillModalOpen(false);
+    setEditingDrill(null);
+  };
+
+  const handleDeleteCustomDrill = (drillId: string) => {
+    deleteLocalCustomDrill(drillId);
+    setDrills(prev => {
+      const filtered = prev.filter(d => d.id !== drillId);
+      if (selectedDrill.id === drillId) {
+        setSelectedDrill(filtered[0] || DEFAULT_DRILLS[0]);
+      }
+      return filtered;
+    });
   };
 
   return (
@@ -74,17 +103,24 @@ export const PracticeHub: React.FC<PracticeHubProps> = ({ team }) => {
             Practice Hub &amp; Animated Drill Studio
           </h2>
           <p className="text-xs md:text-sm text-slate-400 mt-1">
-            Browse, AI-generate, or edit 2D animated drill step illustrations for {team.name}
+            Create custom drills, AI-generate tactics, or browse 2D animated illustrations for {team.name}
           </p>
         </div>
 
         <div className="flex items-center space-x-3 w-full sm:w-auto">
           <button
-            onClick={() => setIsAIGeneratorOpen(true)}
+            onClick={() => { setEditingDrill(null); setIsCustomDrillModalOpen(true); }}
             className="flex-1 sm:flex-none min-h-[44px] px-4 py-3 bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black text-xs rounded-2xl transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95"
           >
-            <Bot className="w-4 h-4" />
-            <span>+ Generate Drill with AI</span>
+            <PenTool className="w-4 h-4" />
+            <span>➕ Make Your Own Drill</span>
+          </button>
+          <button
+            onClick={() => setIsAIGeneratorOpen(true)}
+            className="flex-1 sm:flex-none min-h-[44px] px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-bold text-xs rounded-2xl border border-slate-700 transition flex items-center justify-center gap-2 active:scale-95"
+          >
+            <Bot className="w-4 h-4 text-emerald-400" />
+            <span>AI Drill Generator</span>
           </button>
           <button
             onClick={() => setIsShareModalOpen(true)}
@@ -120,9 +156,16 @@ export const PracticeHub: React.FC<PracticeHubProps> = ({ team }) => {
                     : 'bg-slate-900 border-slate-800 hover:border-slate-700'
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-xs text-white">{drill.title}</span>
-                  <span className="text-[10px] px-2 py-0.5 bg-slate-800 text-emerald-400 font-semibold rounded">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-bold text-xs text-white flex items-center gap-1.5">
+                    {drill.title}
+                    {drill.isCustom && (
+                      <span className="px-1.5 py-0.5 bg-amber-500/20 text-amber-300 text-[9px] font-bold rounded border border-amber-500/30">
+                        Custom
+                      </span>
+                    )}
+                  </span>
+                  <span className="text-[10px] px-2 py-0.5 bg-slate-800 text-emerald-400 font-semibold rounded shrink-0">
                     {drill.durationMinutes}m
                   </span>
                 </div>
@@ -139,47 +182,75 @@ export const PracticeHub: React.FC<PracticeHubProps> = ({ team }) => {
           <div className="glass-panel p-5 rounded-2xl flex flex-wrap items-center justify-between gap-4 border border-slate-800">
             <div>
               <div className="flex items-center space-x-2">
-                <span className="px-2.5 py-0.5 bg-emerald-500/20 text-emerald-300 text-xs rounded-full font-bold border border-emerald-500/30">
-                  {selectedDrill.category} ({selectedDrill.durationMinutes} Mins)
+                <span className="px-2.5 py-0.5 bg-emerald-500/20 text-emerald-300 text-xs font-bold rounded-full border border-emerald-500/30">
+                  {selectedDrill.category}
                 </span>
+                <span className="text-xs text-slate-400">⏱️ {selectedDrill.durationMinutes} Mins</span>
+                {selectedDrill.isCustom && (
+                  <span className="px-2 py-0.5 bg-amber-500/20 text-amber-300 text-[10px] font-bold rounded border border-amber-500/30">
+                    Custom Coach Drill
+                  </span>
+                )}
               </div>
-              <h3 className="text-lg font-black text-white mt-1">{selectedDrill.title}</h3>
-              <p className="text-xs text-slate-400 mt-0.5">{selectedDrill.description}</p>
+              <h3 className="text-lg md:text-xl font-black text-white mt-1">{selectedDrill.title}</h3>
             </div>
 
-            <button
-              onClick={() => setIsEditModalOpen(true)}
-              className="min-h-[40px] px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-xl text-xs font-bold border border-slate-700 transition flex items-center gap-1.5"
-            >
-              <Edit3 className="w-4 h-4 text-amber-400" />
-              <span>Edit Steps</span>
-            </button>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={() => { setEditingDrill(selectedDrill); setIsCustomDrillModalOpen(true); }}
+                className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-bold text-xs rounded-xl border border-slate-700 transition flex items-center gap-1.5"
+              >
+                <PenTool className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Edit Drill</span>
+              </button>
+
+              {selectedDrill.isCustom && (
+                <button
+                  onClick={() => handleDeleteCustomDrill(selectedDrill.id)}
+                  className="px-3 py-2 bg-slate-800 hover:bg-red-500/20 text-slate-400 hover:text-red-400 font-bold text-xs rounded-xl border border-slate-700 transition flex items-center gap-1"
+                  title="Delete Custom Drill"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
+
+              <button
+                onClick={() => setIsPlayingAnimation(!isPlayingAnimation)}
+                className={`px-4 py-2 rounded-xl font-black text-xs transition-all flex items-center gap-1.5 shadow-lg ${
+                  isPlayingAnimation
+                    ? 'bg-amber-500 text-slate-950 ring-4 ring-amber-500/30 animate-pulse'
+                    : 'bg-emerald-500 text-slate-950 ring-4 ring-emerald-500/30'
+                }`}
+              >
+                {isPlayingAnimation ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
+                <span>{isPlayingAnimation ? 'Pause' : 'Play 60fps Animation'}</span>
+              </button>
+            </div>
           </div>
 
-          {/* Interactive 2D Pitch Canvas Visualizer for Drill Keyframes */}
-          <div className="relative space-y-3">
-            {currentKeyframe && (
+          {/* 2D Pitch Canvas Animation Viewer */}
+          <div className="glass-panel p-4 rounded-2xl space-y-4 border border-slate-800">
+            <div className="h-80 md:h-96 w-full relative overflow-hidden rounded-2xl border-2 border-emerald-950">
               <PitchCanvas
                 nodes={currentKeyframe.nodes}
                 arrows={currentKeyframe.arrows}
                 playersMap={playersMap}
                 isPlayingAnimation={isPlayingAnimation}
+                isFullscreen={false}
               />
-            )}
+            </div>
 
-            {/* Step Controls Touch Bar */}
-            <div className="glass-panel p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 border border-emerald-500/20 shadow-xl">
-              {/* Step Switcher Buttons */}
-              <div className="flex items-center space-x-2">
-                <span className="text-xs font-bold text-slate-300">Animation Step:</span>
+            {/* Step Navigation Tabs */}
+            <div className="flex items-center justify-between gap-3 bg-slate-950 p-3 rounded-xl border border-slate-800">
+              <div className="flex items-center space-x-2 overflow-x-auto">
                 {selectedDrill.keyframes.map((kf, idx) => (
                   <button
                     key={kf.id}
                     onClick={() => { setActiveKeyframeIndex(idx); setIsPlayingAnimation(false); }}
-                    className={`min-w-[44px] min-h-[44px] px-3 py-2 rounded-xl text-xs font-black transition active:scale-95 ${
-                      idx === activeKeyframeIndex
-                        ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
-                        : 'bg-slate-900 text-slate-400 border border-slate-800'
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition border ${
+                      activeKeyframeIndex === idx
+                        ? 'bg-emerald-500 text-slate-950 border-emerald-400 shadow'
+                        : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
                     }`}
                   >
                     Step {kf.stepNumber}
@@ -187,233 +258,118 @@ export const PracticeHub: React.FC<PracticeHubProps> = ({ team }) => {
                 ))}
               </div>
 
-              {/* Play Drill Animation Button */}
-              <button
-                onClick={() => setIsPlayingAnimation(!isPlayingAnimation)}
-                className={`min-h-[48px] px-6 py-2.5 rounded-2xl font-black text-xs transition-all flex items-center gap-2 shadow-xl active:scale-95 ${
-                  isPlayingAnimation
-                    ? 'bg-amber-500 text-slate-950 ring-4 ring-amber-500/30 animate-pulse'
-                    : 'bg-emerald-500 text-slate-950 ring-4 ring-emerald-500/30'
-                }`}
-              >
-                {isPlayingAnimation ? <Pause className="w-5 h-5 fill-current" /> : <Play className="w-5 h-5 fill-current" />}
-                <span>{isPlayingAnimation ? 'Pause Animation' : 'Play Step Animation'}</span>
-              </button>
+              <div className="text-xs text-slate-400 font-semibold shrink-0">
+                Step {activeKeyframeIndex + 1} of {selectedDrill.keyframes.length}
+              </div>
+            </div>
+
+            {/* Step Description */}
+            <div className="p-3 bg-slate-900/60 rounded-xl border border-slate-800 text-xs text-slate-300">
+              <strong className="text-white">Instruction: </strong>
+              {currentKeyframe.description}
             </div>
           </div>
 
-          {/* Keyframe Step Description & Coaching Points */}
-          <div className="glass-panel p-5 rounded-2xl space-y-3 border border-slate-800 text-xs">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-emerald-400 text-sm">
-                Step {currentKeyframe?.stepNumber}: {currentKeyframe?.description}
-              </span>
-            </div>
-
-            <div className="pt-3 border-t border-slate-800 space-y-2">
-              <div className="font-bold text-amber-400 uppercase tracking-wide">Key Coaching Points:</div>
-              <ul className="space-y-1.5 text-slate-300">
-                {selectedDrill.coachingPoints.map((pt, idx) => (
-                  <li key={idx} className="flex items-start gap-2">
-                    <span className="text-emerald-400 font-bold">•</span>
-                    <span>{pt}</span>
-                  </li>
-                ))}
-              </ul>
+          {/* Coaching Points */}
+          <div className="glass-panel p-5 rounded-2xl space-y-3 border border-slate-800">
+            <h4 className="text-sm font-bold text-white flex items-center gap-2">
+              <Check className="w-4 h-4 text-emerald-400" />
+              Key Coaching Points
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {selectedDrill.coachingPoints.map((point, i) => (
+                <div key={i} className="p-3 bg-slate-900/80 rounded-xl border border-slate-800/80 text-xs text-slate-300 flex items-start gap-2">
+                  <span className="text-emerald-400 font-bold">•</span>
+                  <span>{point}</span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
       </div>
 
-      {/* AI Drill Generator Modal */}
+      {/* CUSTOM DRILL CREATOR / EDIT MODAL */}
+      {isCustomDrillModalOpen && (
+        <CustomDrillModal
+          team={team}
+          initialDrill={editingDrill}
+          onClose={() => { setIsCustomDrillModalOpen(false); setEditingDrill(null); }}
+          onSave={handleSaveCustomDrill}
+        />
+      )}
+
+      {/* SHARE WITH PARENTS MODAL */}
+      {isShareModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-lg w-full space-y-5 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <Share2 className="w-5 h-5 text-emerald-400" /> Share Drill &amp; Session Plan
+              </h3>
+              <button onClick={() => setIsShareModalOpen(false)} className="text-slate-400 hover:text-white">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 font-mono text-xs text-emerald-300 leading-relaxed whitespace-pre-wrap max-h-60 overflow-y-auto">
+              {parentShareText}
+            </div>
+
+            <div className="flex items-center justify-end space-x-3">
+              <button
+                onClick={handleCopyShareText}
+                className="px-5 py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs rounded-2xl transition flex items-center gap-2 shadow-lg shadow-emerald-500/20 active:scale-95"
+              >
+                {copiedText ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                <span>{copiedText ? 'Copied to Clipboard!' : 'Copy / Web Share Link'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* AI DRILL GENERATOR MODAL */}
       {isAIGeneratorOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
-          <div className="glass-panel w-full max-w-lg p-6 rounded-3xl space-y-4 border border-slate-700 shadow-2xl my-auto">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-              <h3 className="text-base font-black text-white flex items-center gap-2">
-                <Bot className="w-5 h-5 text-emerald-400" />
-                AI Tactical Drill Generator
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-lg w-full space-y-5 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                <Bot className="w-5 h-5 text-emerald-400" /> AI Tactical Drill Studio
               </h3>
               <button onClick={() => setIsAIGeneratorOpen(false)} className="text-slate-400 hover:text-white">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <p className="text-xs text-slate-400">
-              Describe what skill or tactical situation you want to teach, and AI will write the steps and illustrate 2D animated keyframes!
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Describe your coaching goal, opponent tactic, or skill focus, and AI will construct custom step illustrations with keyframes:
             </p>
 
             <textarea
+              rows={3}
+              placeholder="e.g., 3v2 counter-attacking drill focusing on rapid transition and overlapping fullbacks for U10..."
               value={aiPromptInput}
               onChange={(e) => setAiPromptInput(e.target.value)}
-              rows={3}
-              placeholder="e.g. U10 Overlapping fullbacks drill with wingers, or 3v2 counter attack drill under pressure..."
-              className="w-full px-4 py-3 bg-slate-900 border border-slate-700 rounded-2xl text-white text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500"
+              className="w-full bg-slate-950 border border-slate-800 rounded-2xl p-3.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
 
-            {/* Quick AI Presets */}
-            <div className="space-y-1.5">
-              <div className="text-[11px] text-slate-400 font-semibold">Quick AI Presets:</div>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  'Overlapping Fullbacks & Wingers',
-                  'High Press & Trap Box Rondo',
-                  'Rapid Turn & Finish Under Pressure'
-                ].map(preset => (
-                  <button
-                    key={preset}
-                    onClick={() => setAiPromptInput(preset)}
-                    className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs rounded-xl border border-slate-800 font-medium transition"
-                  >
-                    + {preset}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-800">
+            <div className="flex items-center justify-end space-x-3">
               <button
                 onClick={() => setIsAIGeneratorOpen(false)}
-                className="min-h-[44px] px-5 py-2.5 bg-slate-800 text-slate-300 rounded-2xl text-xs font-bold"
+                className="px-4 py-2.5 bg-slate-800 text-slate-300 text-xs font-bold rounded-xl"
               >
                 Cancel
               </button>
               <button
-                onClick={() => handleGenerateAIDrill(aiPromptInput || 'Overlapping Fullbacks')}
-                className="min-h-[44px] px-6 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-2xl text-xs font-black shadow-lg shadow-emerald-500/20"
+                onClick={() => handleGenerateAIDrill(aiPromptInput)}
+                className="px-5 py-2.5 bg-emerald-500 text-slate-950 font-black text-xs rounded-xl flex items-center gap-1.5 shadow-lg shadow-emerald-500/20"
               >
-                Generate Illustrated Drill
+                <Sparkles className="w-4 h-4" /> Generate 2D Drill
               </button>
             </div>
           </div>
         </div>
       )}
-
-      {/* Edit Drill Modal */}
-      {isEditModalOpen && (
-        <EditDrillModal
-          drill={selectedDrill}
-          onSave={handleSaveEditedDrill}
-          onClose={() => setIsEditModalOpen(false)}
-        />
-      )}
-
-      {/* Share Modal */}
-      {isShareModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="glass-panel w-full max-w-md p-6 rounded-2xl space-y-4 border border-slate-700 shadow-2xl">
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                <Share2 className="w-4 h-4 text-emerald-400" />
-                Share Practice Plan with Parents
-              </h3>
-              <button onClick={() => setIsShareModalOpen(false)} className="text-slate-400 hover:text-white text-xs font-bold">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <p className="text-xs text-slate-400">
-              Copy this formatted summary to share via SMS, Email, or messaging apps with parents:
-            </p>
-
-            <div className="p-3 bg-slate-950 rounded-xl border border-slate-800 text-xs font-mono text-slate-300 whitespace-pre-wrap max-h-56 overflow-y-auto">
-              {parentShareText}
-            </div>
-
-            <div className="flex items-center justify-end space-x-3 pt-2">
-              <button
-                onClick={handleCopyShareText}
-                className="w-full min-h-[44px] py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-xl text-xs font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20"
-              >
-                {copiedText ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                {copiedText ? 'Copied to Clipboard!' : 'Copy Summary & Share Link'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-interface EditDrillModalProps {
-  drill: Drill;
-  onSave: (d: Drill) => void;
-  onClose: () => void;
-}
-
-const EditDrillModal: React.FC<EditDrillModalProps> = ({ drill, onSave, onClose }) => {
-  const [formData, setFormData] = useState<Drill>({ ...drill });
-
-  const handlePointChange = (idx: number, val: string) => {
-    const updated = [...formData.coachingPoints];
-    updated[idx] = val;
-    setFormData({ ...formData, coachingPoints: updated });
-  };
-
-  const handleAddPoint = () => {
-    setFormData({ ...formData, coachingPoints: [...formData.coachingPoints, 'New coaching point'] });
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
-      <div className="glass-panel w-full max-w-lg p-6 rounded-3xl space-y-4 border border-slate-700 shadow-2xl my-auto">
-        <div className="flex items-center justify-between pb-3 border-b border-slate-800">
-          <h3 className="text-base font-black text-white">Edit Drill Details</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-white">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        <div className="space-y-3 text-xs">
-          <div>
-            <label className="text-slate-300 font-bold">Drill Title:</label>
-            <input
-              type="text"
-              value={formData.title}
-              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              className="w-full mt-1 px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white text-xs"
-            />
-          </div>
-
-          <div>
-            <label className="text-slate-300 font-bold">Description:</label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              rows={2}
-              className="w-full mt-1 px-4 py-2.5 bg-slate-900 border border-slate-700 rounded-xl text-white text-xs"
-            />
-          </div>
-
-          <div>
-            <div className="flex items-center justify-between">
-              <label className="text-slate-300 font-bold">Key Coaching Points:</label>
-              <button onClick={handleAddPoint} className="text-emerald-400 font-bold text-[11px]">+ Add Point</button>
-            </div>
-            <div className="space-y-1.5 mt-1.5">
-              {formData.coachingPoints.map((pt, i) => (
-                <input
-                  key={i}
-                  type="text"
-                  value={pt}
-                  onChange={(e) => handlePointChange(i, e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-900 border border-slate-700 rounded-xl text-white text-xs"
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-800">
-          <button onClick={onClose} className="min-h-[44px] px-5 py-2.5 bg-slate-800 text-slate-300 rounded-2xl text-xs font-bold">
-            Cancel
-          </button>
-          <button onClick={() => onSave(formData)} className="min-h-[44px] px-6 py-2.5 bg-emerald-500 text-slate-950 rounded-2xl text-xs font-black">
-            Save Changes
-          </button>
-        </div>
-      </div>
     </div>
   );
 };

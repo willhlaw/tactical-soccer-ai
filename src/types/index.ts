@@ -101,6 +101,7 @@ export interface Drill {
   description: string;
   coachingPoints: string[];
   keyframes: DrillKeyframe[];
+  isCustom?: boolean;
 }
 
 export interface AICoachMessage {
