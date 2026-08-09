@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { PitchCanvas } from './PitchCanvas';
-import { Team, PitchNode, TacticalArrow, FormationPreset } from '../../types';
+import { Team, PitchNode, TacticalArrow, TacticalCone, FormationPreset } from '../../types';
 import { FORMATION_PRESETS, getFormationsForFormat } from '../../services/formations';
 import { Play, Pause, RotateCcw, Trash2, Shield, Zap, Maximize2, Minimize2, PenTool, Users, Star, Plus, Minus, Target, Grid } from 'lucide-react';
 
@@ -32,6 +32,11 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
   const [homeCount, setHomeCount] = useState<number>(3);
   const [awayCount, setAwayCount] = useState<number>(2);
   const [thirdCount, setThirdCount] = useState<number>(0);
+
+  // Tactical Cones State 🔶
+  const [cones, setCones] = useState<TacticalCone[]>([]);
+  const [isPlacingCone, setIsPlacingCone] = useState<boolean>(false);
+  const [coneColor, setConeColor] = useState<'orange' | 'yellow' | 'blue' | 'red'>('orange');
 
   // Initialize home pitch nodes
   const [nodes, setNodes] = useState<PitchNode[]>(() => {
@@ -165,6 +170,41 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
     setAwayNodes(newAwayNodes);
     setThirdNodes(newThirdNodes);
     if (aCount > 0 || tCount > 0) setShowOpposition(true);
+  };
+
+  // Cone Handlers 🔶
+  const handleAddCone = (cone: TacticalCone) => {
+    setCones(prev => [...prev, cone]);
+  };
+
+  const handleConeMove = (coneId: string, newX: number, newY: number) => {
+    setCones(prev => prev.map(c => c.id === coneId ? { ...c, x: newX, y: newY } : c));
+  };
+
+  const handleDeleteCone = (coneId: string) => {
+    setCones(prev => prev.filter(c => c.id !== coneId));
+  };
+
+  const handleApplyBoxGrid = () => {
+    setCones([
+      { id: 'c-top-left', x: 25, y: 25, color: coneColor },
+      { id: 'c-top-right', x: 75, y: 25, color: coneColor },
+      { id: 'c-bottom-left', x: 25, y: 75, color: coneColor },
+      { id: 'c-bottom-right', x: 75, y: 75, color: coneColor },
+    ]);
+  };
+
+  const handleApplyGatesGrid = () => {
+    setCones([
+      { id: 'g1-left', x: 20, y: 35, color: 'yellow' },
+      { id: 'g1-right', x: 20, y: 45, color: 'yellow' },
+      { id: 'g2-left', x: 80, y: 35, color: 'yellow' },
+      { id: 'g2-right', x: 80, y: 45, color: 'yellow' },
+    ]);
+  };
+
+  const handleClearCones = () => {
+    setCones([]);
   };
 
   // Dynamic reaction when 5v5 / 7v7 / 9v9 / 11v11 format changes in header
@@ -370,15 +410,21 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
             onAwayNodeMove={handleAwayNodeMove}
             thirdNodes={showOpposition ? thirdNodes : []}
             onThirdNodeMove={handleThirdNodeMove}
+            cones={cones}
+            onAddCone={handleAddCone}
+            onConeMove={handleConeMove}
+            onDeleteCone={handleDeleteCone}
+            isPlacingCone={isPlacingCone}
+            coneColor={coneColor}
           />
         </div>
 
         {/* Floating Bottom Touch Bar */}
         <div className="bg-slate-900/95 backdrop-blur p-3 rounded-2xl flex flex-wrap items-center justify-between gap-4 border border-slate-800 shadow-2xl">
-          {/* Vector Drawing Mode Controls */}
+          {/* Vector & Cone Toolbar */}
           <div className="flex items-center space-x-2">
             <button
-              onClick={() => setIsDrawingArrow(!isDrawingArrow)}
+              onClick={() => { setIsDrawingArrow(!isDrawingArrow); setIsPlacingCone(false); }}
               className={`px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 border ${
                 isDrawingArrow
                   ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-lg shadow-amber-500/30'
@@ -386,24 +432,19 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
               }`}
             >
               <PenTool className="w-4 h-4" />
-              <span>{isDrawingArrow ? 'Drawing Vector Mode' : '+ Draw Vector'}</span>
+              <span>{isDrawingArrow ? 'Drawing Vector' : '+ Draw Vector'}</span>
             </button>
 
-            {isDrawingArrow && (
-              <div className="flex items-center space-x-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
-                {(['pass', 'run', 'dribble', 'shot'] as const).map(type => (
-                  <button
-                    key={type}
-                    onClick={() => setArrowType(type)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition ${
-                      arrowType === type ? 'bg-emerald-500 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
-                    }`}
-                  >
-                    {type}
-                  </button>
-                ))}
-              </div>
-            )}
+            <button
+              onClick={() => { setIsPlacingCone(!isPlacingCone); setIsDrawingArrow(false); }}
+              className={`px-4 py-2.5 rounded-xl font-bold text-xs transition-all flex items-center gap-2 border ${
+                isPlacingCone
+                  ? 'bg-orange-500 text-slate-950 border-orange-400 shadow-lg shadow-orange-500/30 font-black'
+                  : 'bg-slate-950 text-slate-300 border-slate-800 hover:bg-slate-800'
+              }`}
+            >
+              <span>🔶 {isPlacingCone ? 'Placing Cone Mode' : '+ Place Cone'}</span>
+            </button>
           </div>
 
           {/* Action Touch Buttons */}
@@ -461,7 +502,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
             <p className="text-xs text-slate-400">
               {isDrillMode
                 ? `Drill Mode active: Pick exact player count on the pitch (${homeCount} Blue vs ${awayCount} Red ${thirdCount > 0 ? `vs ${thirdCount} Gold` : ''})`
-                : 'Drag players, opposition, or soccer ball ⚽ to demonstrate plays'}
+                : 'Drag players, opposition, cones 🔶, or soccer ball ⚽ to demonstrate plays'}
             </p>
           </div>
         </div>
@@ -502,100 +543,102 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
         </div>
       </div>
 
-      {/* Drill Mode 3-Team Player Counter Toolbar */}
+      {/* Drill Mode 3-Team Player Counter & Cone Toolbar */}
       {isDrillMode ? (
-        <div className="glass-panel p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 border-2 border-cyan-500/30 bg-cyan-950/20">
-          <div className="flex flex-wrap items-center gap-6">
-            {/* Team A (Home Blue) Player Count */}
-            <div className="flex items-center space-x-2">
-              <span className="text-xs font-bold text-blue-300 flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span> Team A:
-              </span>
-              <div className="flex items-center space-x-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
-                <button
-                  onClick={() => handleUpdateHomeCount(-1)}
-                  className="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center text-xs active:scale-95"
-                >
-                  <Minus className="w-3 h-3" />
-                </button>
-                <span className="w-5 text-center font-black text-xs text-blue-400">{homeCount}</span>
-                <button
-                  onClick={() => handleUpdateHomeCount(1)}
-                  className="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center text-xs active:scale-95"
-                >
-                  <Plus className="w-3 h-3" />
-                </button>
+        <div className="glass-panel p-4 rounded-2xl space-y-4 border-2 border-cyan-500/30 bg-cyan-950/20">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center gap-6">
+              {/* Team A (Home Blue) Player Count */}
+              <div className="flex items-center space-x-2">
+                <span className="text-xs font-bold text-blue-300 flex items-center gap-1">
+                  <span className="w-2.5 h-2.5 rounded-full bg-blue-500"></span> Team A:
+                </span>
+                <div className="flex items-center space-x-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                  <button
+                    onClick={() => handleUpdateHomeCount(-1)}
+                    className="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center text-xs active:scale-95"
+                  >
+                    <Minus className="w-3 h-3" />
+                  </button>
+                  <span className="w-5 text-center font-black text-xs text-blue-400">{homeCount}</span>
+                  <button
+                    onClick={() => handleUpdateHomeCount(1)}
+                    className="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center text-xs active:scale-95"
+                  >
+                    <Plus className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Team B (Away Red) Player Count */}
+              <div className="flex items-center space-x-2">
+                <span className="text-xs font-bold text-red-300 flex items-center gap-1">
+                  <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span> Team B:
+                </span>
+                <div className="flex items-center space-x-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                  <button
+                    onClick={() => handleUpdateAwayCount(-1)}
+                    className="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center text-xs active:scale-95"
+                  >
+                    <Minus className="w-3 h-3" />
+                  </button>
+                  <span className="w-5 text-center font-black text-xs text-red-400">{awayCount}</span>
+                  <button
+                    onClick={() => handleUpdateAwayCount(1)}
+                    className="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center text-xs active:scale-95"
+                  >
+                    <Plus className="w-3 h-3" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Team C / 3rd Team (Neutrals Gold) Player Count */}
+              <div className="flex items-center space-x-2">
+                <span className="text-xs font-bold text-amber-300 flex items-center gap-1">
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400"></span> Team C (3rd):
+                </span>
+                <div className="flex items-center space-x-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
+                  <button
+                    onClick={() => handleUpdateThirdCount(-1)}
+                    className="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center text-xs active:scale-95"
+                  >
+                    <Minus className="w-3 h-3" />
+                  </button>
+                  <span className="w-5 text-center font-black text-xs text-amber-400">{thirdCount}</span>
+                  <button
+                    onClick={() => handleUpdateThirdCount(1)}
+                    className="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center text-xs active:scale-95"
+                  >
+                    <Plus className="w-3 h-3" />
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* Team B (Away Red) Player Count */}
-            <div className="flex items-center space-x-2">
-              <span className="text-xs font-bold text-red-300 flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-red-500"></span> Team B:
-              </span>
-              <div className="flex items-center space-x-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
+            {/* Quick Drill Presets */}
+            <div className="flex items-center space-x-2 overflow-x-auto">
+              <span className="text-[11px] text-slate-400 font-semibold mr-1">Presets:</span>
+              {[
+                { label: '1v1', h: 1, a: 1, t: 0 },
+                { label: '2v1 Overload', h: 2, a: 1, t: 0 },
+                { label: '3v2 Counter', h: 3, a: 2, t: 0 },
+                { label: '4v2 Rondo', h: 4, a: 2, t: 0 },
+                { label: '3v3v3 (3 Teams)', h: 3, a: 3, t: 3 },
+                { label: '4v4+3 Neutral', h: 4, a: 4, t: 3 },
+              ].map(preset => (
                 <button
-                  onClick={() => handleUpdateAwayCount(-1)}
-                  className="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center text-xs active:scale-95"
+                  key={preset.label}
+                  onClick={() => handleApplyDrillPreset(preset.h, preset.a, preset.t)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition border ${
+                    homeCount === preset.h && awayCount === preset.a && thirdCount === preset.t
+                      ? 'bg-cyan-500 text-slate-950 border-cyan-400 font-black shadow'
+                      : 'bg-slate-950 text-slate-300 border-slate-800 hover:text-white'
+                  }`}
                 >
-                  <Minus className="w-3 h-3" />
+                  {preset.label}
                 </button>
-                <span className="w-5 text-center font-black text-xs text-red-400">{awayCount}</span>
-                <button
-                  onClick={() => handleUpdateAwayCount(1)}
-                  className="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center text-xs active:scale-95"
-                >
-                  <Plus className="w-3 h-3" />
-                </button>
-              </div>
+              ))}
             </div>
-
-            {/* Team C / 3rd Team (Neutrals Gold) Player Count */}
-            <div className="flex items-center space-x-2">
-              <span className="text-xs font-bold text-amber-300 flex items-center gap-1">
-                <span className="w-2.5 h-2.5 rounded-full bg-amber-400"></span> Team C (3rd):
-              </span>
-              <div className="flex items-center space-x-1.5 bg-slate-950 p-1 rounded-xl border border-slate-800">
-                <button
-                  onClick={() => handleUpdateThirdCount(-1)}
-                  className="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center text-xs active:scale-95"
-                >
-                  <Minus className="w-3 h-3" />
-                </button>
-                <span className="w-5 text-center font-black text-xs text-amber-400">{thirdCount}</span>
-                <button
-                  onClick={() => handleUpdateThirdCount(1)}
-                  className="w-6 h-6 rounded-lg bg-slate-800 hover:bg-slate-700 text-white font-bold flex items-center justify-center text-xs active:scale-95"
-                >
-                  <Plus className="w-3 h-3" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Drill Presets */}
-          <div className="flex items-center space-x-2 overflow-x-auto">
-            <span className="text-[11px] text-slate-400 font-semibold mr-1">Presets:</span>
-            {[
-              { label: '1v1', h: 1, a: 1, t: 0 },
-              { label: '2v1 Overload', h: 2, a: 1, t: 0 },
-              { label: '3v2 Counter', h: 3, a: 2, t: 0 },
-              { label: '4v2 Rondo', h: 4, a: 2, t: 0 },
-              { label: '3v3v3 (3 Teams)', h: 3, a: 3, t: 3 },
-              { label: '4v4+3 Neutral', h: 4, a: 4, t: 3 },
-            ].map(preset => (
-              <button
-                key={preset.label}
-                onClick={() => handleApplyDrillPreset(preset.h, preset.a, preset.t)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition border ${
-                  homeCount === preset.h && awayCount === preset.a && thirdCount === preset.t
-                    ? 'bg-cyan-500 text-slate-950 border-cyan-400 font-black shadow'
-                    : 'bg-slate-950 text-slate-300 border-slate-800 hover:text-white'
-                }`}
-              >
-                {preset.label}
-              </button>
-            ))}
           </div>
         </div>
       ) : (
@@ -671,17 +714,23 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
             onAwayNodeMove={handleAwayNodeMove}
             thirdNodes={showOpposition ? thirdNodes : []}
             onThirdNodeMove={handleThirdNodeMove}
+            cones={cones}
+            onAddCone={handleAddCone}
+            onConeMove={handleConeMove}
+            onDeleteCone={handleDeleteCone}
+            isPlacingCone={isPlacingCone}
+            coneColor={coneColor}
           />
 
           {/* Normal Mode Touch Control Bar */}
           <div className="glass-panel p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 border-2 border-emerald-500/20 shadow-xl">
-            {/* Draw Mode Controls */}
-            <div className="flex items-center space-x-3">
+            {/* Draw Mode & Cone Controls */}
+            <div className="flex flex-wrap items-center gap-3">
               <button
-                onClick={() => setIsDrawingArrow(!isDrawingArrow)}
+                onClick={() => { setIsDrawingArrow(!isDrawingArrow); setIsPlacingCone(false); }}
                 className={`px-4 py-3 rounded-2xl font-bold text-xs transition-all flex items-center gap-2 border ${
                   isDrawingArrow
-                    ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-lg shadow-amber-500/30'
+                    ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-lg shadow-amber-500/30 font-black'
                     : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
                 }`}
               >
@@ -689,21 +738,63 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
                 <span>{isDrawingArrow ? 'Drawing Vector Mode' : '+ Draw Vector'}</span>
               </button>
 
-              {isDrawingArrow && (
-                <div className="flex items-center space-x-1.5 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
-                  {(['pass', 'run', 'dribble', 'shot'] as const).map(type => (
+              {/* Cone Placer Button & Grid Presets 🔶 */}
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => { setIsPlacingCone(!isPlacingCone); setIsDrawingArrow(false); }}
+                  className={`px-4 py-3 rounded-2xl font-bold text-xs transition-all flex items-center gap-2 border ${
+                    isPlacingCone
+                      ? 'bg-orange-500 text-slate-950 border-orange-400 shadow-lg shadow-orange-500/30 font-black'
+                      : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
+                  }`}
+                >
+                  <span>🔶 {isPlacingCone ? 'Placing Cone Mode' : '+ Place Cone'}</span>
+                </button>
+
+                {isPlacingCone && (
+                  <div className="flex items-center space-x-1 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
+                    {(['orange', 'yellow', 'blue', 'red'] as const).map(color => (
+                      <button
+                        key={color}
+                        onClick={() => setConeColor(color)}
+                        className={`w-6 h-6 rounded-full border border-white/80 transition-transform ${
+                          coneColor === color ? 'scale-125 ring-2 ring-white shadow' : 'opacity-70 hover:opacity-100'
+                        } ${
+                          color === 'orange' ? 'bg-orange-500' : (color === 'yellow' ? 'bg-yellow-400' : (color === 'blue' ? 'bg-blue-500' : 'bg-red-500'))
+                        }`}
+                        title={`${color} cone`}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                {/* Cone Grid Helpers */}
+                <div className="flex items-center space-x-1">
+                  <button
+                    onClick={handleApplyBoxGrid}
+                    className="px-3 py-3 bg-slate-900 hover:bg-slate-800 text-orange-300 font-bold text-xs rounded-2xl border border-slate-800 transition"
+                    title="Place 4 Corner Cones Box Grid"
+                  >
+                    Box Grid
+                  </button>
+                  <button
+                    onClick={handleApplyGatesGrid}
+                    className="px-3 py-3 bg-slate-900 hover:bg-slate-800 text-yellow-300 font-bold text-xs rounded-2xl border border-slate-800 transition"
+                    title="Place 2 Passing Gates"
+                  >
+                    Gates
+                  </button>
+                  {cones.length > 0 && (
                     <button
-                      key={type}
-                      onClick={() => setArrowType(type)}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-bold capitalize transition ${
-                        arrowType === type ? 'bg-emerald-500 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
-                      }`}
+                      onClick={handleClearCones}
+                      className="px-2.5 py-3 bg-slate-900 hover:bg-red-500/20 text-slate-400 hover:text-red-400 font-bold text-xs rounded-2xl border border-slate-800 transition"
+                      title="Clear All Cones"
                     >
-                      {type}
+                      Clear 🧹
                     </button>
-                  ))}
+                  )}
                 </div>
-              )}
+              </div>
             </div>
 
             {/* Action Buttons */}
@@ -762,7 +853,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
           <div className="space-y-2">
             <div className="text-xs font-semibold text-slate-400 flex items-center justify-between">
               <span>Position Assignments:</span>
-              <span className="text-[10px] text-amber-400">⚽ Ball Draggable</span>
+              <span className="text-[10px] text-amber-400">⚽ Ball &amp; 🔶 Cones Draggable</span>
             </div>
             <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
               {nodes.map(n => {

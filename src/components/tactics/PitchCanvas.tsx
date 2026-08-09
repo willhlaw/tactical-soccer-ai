@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { PitchNode, TacticalArrow, Player } from '../../types';
+import { PitchNode, TacticalArrow, TacticalCone, Player } from '../../types';
 
 interface PitchCanvasProps {
   nodes: PitchNode[];
@@ -19,6 +19,14 @@ interface PitchCanvasProps {
   onAwayNodeMove?: (nodeId: string, newX: number, newY: number) => void;
   thirdNodes?: PitchNode[];
   onThirdNodeMove?: (nodeId: string, newX: number, newY: number) => void;
+
+  // Tactical Cones Props 🔶
+  cones?: TacticalCone[];
+  onAddCone?: (cone: TacticalCone) => void;
+  onConeMove?: (coneId: string, newX: number, newY: number) => void;
+  onDeleteCone?: (coneId: string) => void;
+  isPlacingCone?: boolean;
+  coneColor?: 'orange' | 'yellow' | 'blue' | 'red';
 }
 
 export const PitchCanvas: React.FC<PitchCanvasProps> = ({
@@ -36,10 +44,17 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
   awayNodes = [],
   onAwayNodeMove,
   thirdNodes = [],
-  onThirdNodeMove
+  onThirdNodeMove,
+  cones = [],
+  onAddCone,
+  onConeMove,
+  onDeleteCone,
+  isPlacingCone = false,
+  coneColor = 'orange'
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
+  const [draggedConeId, setDraggedConeId] = useState<string | null>(null);
   const [isDraggingBall, setIsDraggingBall] = useState<boolean>(false);
   const [drawingStart, setDrawingStart] = useState<{ x: number; y: number } | null>(null);
   const [currentMousePos, setCurrentMousePos] = useState<{ x: number; y: number } | null>(null);
@@ -82,10 +97,20 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
     return { x, y };
   };
 
-  const handlePointerDown = (e: React.PointerEvent, node?: PitchNode, isBall = false) => {
+  const handlePointerDown = (e: React.PointerEvent, node?: PitchNode, isBall = false, cone?: TacticalCone) => {
     const { x, y } = calculateCanvasCoords(e);
 
-    if (isBall && onBallMove) {
+    if (cone && onConeMove) {
+      setDraggedConeId(cone.id);
+      e.stopPropagation();
+    } else if (isPlacingCone && onAddCone) {
+      onAddCone({
+        id: 'cone-' + Date.now() + '-' + Math.random().toString(36).substring(2, 5),
+        x,
+        y,
+        color: coneColor
+      });
+    } else if (isBall && onBallMove) {
       setIsDraggingBall(true);
       onBallMove(x, y);
       e.stopPropagation();
@@ -101,7 +126,9 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
   const handlePointerMove = (e: React.PointerEvent) => {
     const { x, y } = calculateCanvasCoords(e);
 
-    if (isDraggingBall && onBallMove) {
+    if (draggedConeId && onConeMove) {
+      onConeMove(draggedConeId, x, y);
+    } else if (isDraggingBall && onBallMove) {
       onBallMove(x, y);
     } else if (draggedNodeId) {
       const isAway = awayNodes.some(n => n.id === draggedNodeId);
@@ -130,6 +157,7 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
       });
     }
     setDraggedNodeId(null);
+    setDraggedConeId(null);
     setIsDraggingBall(false);
     setDrawingStart(null);
     setCurrentMousePos(null);
@@ -147,6 +175,14 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
     }
   }
 
+  // Tactical Cone Color Map
+  const coneColorStyles = {
+    orange: 'from-amber-400 to-orange-600 border-amber-300 ring-orange-950/50',
+    yellow: 'from-yellow-300 to-amber-500 border-yellow-200 ring-yellow-950/50',
+    blue: 'from-cyan-400 to-blue-600 border-cyan-200 ring-blue-950/50',
+    red: 'from-rose-400 to-red-600 border-rose-200 ring-red-950/50'
+  };
+
   return (
     <div
       ref={containerRef}
@@ -155,6 +191,8 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
       onPointerCancel={handlePointerUp}
       onPointerDown={(e) => handlePointerDown(e)}
       className={`relative w-full bg-emerald-900 overflow-hidden shadow-2xl border-4 border-emerald-950 select-none touch-none pitch-bg pitch-stripe transition-all duration-300 ${
+        isPlacingCone ? 'cursor-crosshair' : ''
+      } ${
         isFullscreen
           ? 'h-full flex-1 rounded-3xl border-none shadow-none'
           : 'aspect-[4/3] md:aspect-[16/10] rounded-2xl'
@@ -224,6 +262,39 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
           />
         )}
       </svg>
+
+      {/* Tactical Cones Layer 🔶 */}
+      {cones.map(cone => {
+        const isSelected = draggedConeId === cone.id;
+        const colorStyle = coneColorStyles[cone.color] || coneColorStyles.orange;
+
+        return (
+          <div
+            key={cone.id}
+            onPointerDown={(e) => {
+              e.stopPropagation();
+              (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
+              handlePointerDown(e, undefined, false, cone);
+            }}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              if (onDeleteCone) onDeleteCone(cone.id);
+            }}
+            style={{ left: `${cone.x}%`, top: `${cone.y}%` }}
+            className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing z-15 touch-none transition-transform duration-75 ${
+              isSelected ? 'scale-125 z-30' : 'hover:scale-125'
+            }`}
+            title="Tactical Cone (Drag to move, double click to delete)"
+          >
+            <div className="relative group flex flex-col items-center">
+              {/* 3D Disc Cone Shape */}
+              <div className={`w-5 h-5 md:w-6 md:h-6 rounded-full bg-gradient-to-tr ${colorStyle} border border-white/80 shadow-lg flex items-center justify-center ring-2`}>
+                <div className="w-1.5 h-1.5 rounded-full bg-slate-950/60"></div>
+              </div>
+            </div>
+          </div>
+        );
+      })}
 
       {/* 3rd Team Nodes Layer (Team C / Neutrals - Gold 🟡) */}
       {thirdNodes.map(node => {

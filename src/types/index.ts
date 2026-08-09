@@ -55,6 +55,13 @@ export interface PitchNode {
   team: 'home' | 'away' | 'third';
 }
 
+export interface TacticalCone {
+  id: string;
+  x: number; // 0 - 100 percentage
+  y: number; // 0 - 100 percentage
+  color: 'orange' | 'yellow' | 'blue' | 'red';
+}
+
 export interface TacticalArrow {
   id: string;
   startX: number;
