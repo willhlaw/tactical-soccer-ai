@@ -56,6 +56,9 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
   const [isPlacingCone, setIsPlacingCone] = useState<boolean>(false);
   const [coneColor, setConeColor] = useState<'orange' | 'yellow' | 'blue' | 'red'>('orange');
 
+  // Tactical Zones Grid Overlay State 📐
+  const [showTacticalZones, setShowTacticalZones] = useState<boolean>(false);
+
   // Keyframe Sequence Timeline State 🎬
   const [keyframes, setKeyframes] = useState<TacticalKeyframe[]>([]);
   const [activeKeyframeIndex, setActiveKeyframeIndex] = useState<number>(0);
@@ -747,6 +750,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
             keyframes={keyframes}
             activeKeyframeIndex={activeKeyframeIndex}
             timelineProgress={timelineProgress}
+            showTacticalZones={showTacticalZones}
           />
         </div>
 
@@ -851,8 +855,20 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
           </div>
         </div>
 
-        {/* Always Fullscreen Setting, AI Generator, Multi-Ball, Save Scenario & Scenarios Library Buttons */}
+        {/* Always Fullscreen Setting, Tactical Zones, AI Generator, Multi-Ball, Save Scenario & Scenarios Library Buttons */}
         <div className="flex flex-wrap items-center gap-3">
+          <button
+            onClick={() => setShowTacticalZones(!showTacticalZones)}
+            className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border ${
+              showTacticalZones
+                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 shadow-sm'
+                : 'bg-slate-900 text-slate-400 border-slate-800 hover:text-white'
+            }`}
+            title="Toggle 5-Corridor & Half-Space Tactical Zone Overlay Grid"
+          >
+            <span>📐 {showTacticalZones ? 'Tactical Zones ON' : 'Tactical Zones'}</span>
+          </button>
+
           <button
             onClick={handleToggleAlwaysFullscreen}
             className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center gap-1.5 border ${
@@ -1195,6 +1211,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
             keyframes={keyframes}
             activeKeyframeIndex={activeKeyframeIndex}
             timelineProgress={timelineProgress}
+            showTacticalZones={showTacticalZones}
           />
 
           {/* Normal Mode Touch Control Bar with Advanced Vector Modes */}

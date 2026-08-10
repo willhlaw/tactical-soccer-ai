@@ -36,6 +36,9 @@ interface PitchCanvasProps {
   keyframes?: TacticalKeyframe[];
   activeKeyframeIndex?: number;
   timelineProgress?: number; // 0.0 to 1.0
+
+  // 5-Corridor & Half-Space Tactical Zone Overlay 📐
+  showTacticalZones?: boolean;
 }
 
 export const PitchCanvas: React.FC<PitchCanvasProps> = ({
@@ -64,7 +67,8 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
   coneColor = 'orange',
   keyframes = [],
   activeKeyframeIndex = 0,
-  timelineProgress = 0
+  timelineProgress = 0,
+  showTacticalZones = false
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
@@ -76,6 +80,14 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
   // GSAP Driven 60fps Playback Interpolation Progress
   const [animProgress, setAnimProgress] = useState<number>(0);
   const animProgressRef = useRef<number>(0);
+
+  // Derive previous keyframe snapshot for Ghosting / Onion Skinning 👻
+  const previousKeyframe = React.useMemo(() => {
+    if (activeKeyframeIndex > 0 && keyframes[activeKeyframeIndex - 1]) {
+      return keyframes[activeKeyframeIndex - 1];
+    }
+    return null;
+  }, [activeKeyframeIndex, keyframes]);
 
   // Normalize active balls list
   const activeBalls = React.useMemo(() => {
@@ -232,6 +244,26 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
         <rect x="40%" y="0.5%" width="20%" height="2.5%" fill="rgba(255,255,255,0.2)" />
         <rect x="40%" y="97%" width="20%" height="2.5%" fill="rgba(255,255,255,0.2)" />
 
+        {/* 5-Corridor & Half-Space Tactical Zone Grid Overlay 📐 */}
+        {showTacticalZones && (
+          <g className="stroke-amber-400/50 stroke-[1.5] stroke-dasharray-[6_4]">
+            {/* 5 Vertical Corridors (Left Wing, Left Half-Space, Center, Right Half-Space, Right Wing) */}
+            <line x1="20%" y1="3%" x2="20%" y2="97%" strokeDasharray="6 4" />
+            <line x1="40%" y1="3%" x2="40%" y2="97%" strokeDasharray="6 4" />
+            <line x1="60%" y1="3%" x2="60%" y2="97%" strokeDasharray="6 4" />
+            <line x1="80%" y1="3%" x2="80%" y2="97%" strokeDasharray="6 4" />
+
+            {/* 3 Horizontal Thirds (Defensive, Middle, Attacking) */}
+            <line x1="3%" y1="33.3%" x2="97%" y2="33.3%" strokeDasharray="4 4" />
+            <line x1="3%" y1="66.6%" x2="97%" y2="66.6%" strokeDasharray="4 4" />
+
+            {/* Tactical Zone Labels */}
+            <text x="30%" y="45%" fill="#fef08a" fontSize="11" fontWeight="bold" opacity="0.6" stroke="none">Half-Space</text>
+            <text x="70%" y="45%" fill="#fef08a" fontSize="11" fontWeight="bold" opacity="0.6" stroke="none">Half-Space</text>
+            <text x="50%" y="30%" fill="#fde047" fontSize="12" fontWeight="900" textAnchor="middle" opacity="0.8" stroke="none">ZONE 14</text>
+          </g>
+        )}
+
         {/* Advanced Curved & Wavy Vector Arrow Layer ↗️ */}
         {arrows.map(arrow => {
           const colorMap = {
@@ -248,6 +280,9 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
           const dx = arrow.endX - arrow.startX;
           const dy = arrow.endY - arrow.startY;
           
+          // Real-world pitch distance estimation in yards
+          const distanceYards = Math.round(Math.hypot(dx * 1.1, dy * 0.75));
+
           // Perpendicular offset for organic player run curves
           const curveOffsetX = midX - dy * 0.18;
           const curveOffsetY = midY + dx * 0.18;
@@ -267,6 +302,10 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
                   opacity={isPlayingAnimation ? 0.5 : 1}
                 />
                 <circle cx={`${arrow.endX}%`} cy={`${arrow.endY}%`} r="6" fill={stroke} opacity={isPlayingAnimation ? 0.5 : 1} />
+                {/* Distance Badge */}
+                <text x={`${midX}%`} y={`${midY - 2}%`} fill="#93c5fd" fontSize="10" fontWeight="bold" textAnchor="middle" stroke="none">
+                  {distanceYards} yds
+                </text>
               </g>
             );
           } else if (arrow.type === 'dribble') {
@@ -287,6 +326,9 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
                   opacity={isPlayingAnimation ? 0.5 : 1}
                 />
                 <circle cx={`${arrow.endX}%`} cy={`${arrow.endY}%`} r="6" fill={stroke} opacity={isPlayingAnimation ? 0.5 : 1} />
+                <text x={`${midX}%`} y={`${midY - 2}%`} fill="#fde047" fontSize="10" fontWeight="bold" textAnchor="middle" stroke="none">
+                  {distanceYards} yds
+                </text>
               </g>
             );
           } else {
@@ -304,6 +346,9 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
                   opacity={isPlayingAnimation ? 0.5 : 1}
                 />
                 <circle cx={`${arrow.endX}%`} cy={`${arrow.endY}%`} r="6" fill={stroke} opacity={isPlayingAnimation ? 0.5 : 1} />
+                <text x={`${midX}%`} y={`${midY - 2}%`} fill="#6ee7b7" fontSize="10" fontWeight="bold" textAnchor="middle" stroke="none">
+                  ⚽ {distanceYards} yds
+                </text>
               </g>
             );
           }
@@ -322,6 +367,30 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
           />
         )}
       </svg>
+
+      {/* 👻 GHOSTING / ONION SKINNING OVERLAY (Previous Keyframe Silhouettes) */}
+      {previousKeyframe && (
+        <div className="absolute inset-0 pointer-events-none opacity-30">
+          {previousKeyframe.nodes.map(n => (
+            <div
+              key={'ghost-' + n.id}
+              style={{ left: `${n.x}%`, top: `${n.y}%` }}
+              className="absolute -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-blue-400 border border-white/60 flex items-center justify-center text-[10px] font-bold text-white shadow"
+            >
+              {n.label}
+            </div>
+          ))}
+          {previousKeyframe.awayNodes?.map(a => (
+            <div
+              key={'ghost-away-' + a.id}
+              style={{ left: `${a.x}%`, top: `${a.y}%` }}
+              className="absolute -translate-x-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-red-400 border border-white/60 flex items-center justify-center text-[10px] font-bold text-white shadow"
+            >
+              {a.label}
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Tactical Cones Layer 🔶 */}
       {cones.map(cone => {
