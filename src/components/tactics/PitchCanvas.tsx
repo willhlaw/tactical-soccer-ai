@@ -39,6 +39,9 @@ interface PitchCanvasProps {
 
   // 5-Corridor & Half-Space Tactical Zone Overlay 📐
   showTacticalZones?: boolean;
+
+  // Undo / Redo Snapshot Callback ↩️
+  onDragStart?: () => void;
 }
 
 export const PitchCanvas: React.FC<PitchCanvasProps> = ({
@@ -68,7 +71,8 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
   keyframes = [],
   activeKeyframeIndex = 0,
   timelineProgress = 0,
-  showTacticalZones = false
+  showTacticalZones = false,
+  onDragStart
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
@@ -76,7 +80,7 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
   const [draggedBallId, setDraggedBallId] = useState<string | null>(null);
   const [drawingStart, setDrawingStart] = useState<{ x: number; y: number } | null>(null);
   const [currentMousePos, setCurrentMousePos] = useState<{ x: number; y: number } | null>(null);
-  
+
   // GSAP Driven 60fps Playback Interpolation Progress
   const [animProgress, setAnimProgress] = useState<number>(0);
   const animProgressRef = useRef<number>(0);
@@ -118,13 +122,66 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
     };
   }, [isPlayingAnimation, timelineProgress]);
 
-  const calculateCanvasCoords = (e: React.PointerEvent) => {
+  const calculateCanvasCoords = (clientX: number, clientY: number) => {
     if (!containerRef.current) return { x: 50, y: 50 };
     const rect = containerRef.current.getBoundingClientRect();
-    const x = Math.max(2, Math.min(98, ((e.clientX - rect.left) / rect.width) * 100));
-    const y = Math.max(2, Math.min(98, ((e.clientY - rect.top) / rect.height) * 100));
+    const x = Math.max(2, Math.min(98, ((clientX - rect.left) / rect.width) * 100));
+    const y = Math.max(2, Math.min(98, ((clientY - rect.top) / rect.height) * 100));
     return { x, y };
   };
+
+  // Global Pointer Drag Listeners (Guarantees smooth mouse & touch dragging)
+  useEffect(() => {
+    if (!draggedNodeId && !draggedConeId && !draggedBallId && !drawingStart) return;
+
+    const handleGlobalPointerMove = (e: PointerEvent) => {
+      const { x, y } = calculateCanvasCoords(e.clientX, e.clientY);
+
+      if (draggedBallId) {
+        if (onMultiBallMove) onMultiBallMove(draggedBallId, x, y);
+        else if (onBallMove) onBallMove(x, y);
+      } else if (draggedConeId && onConeMove) {
+        onConeMove(draggedConeId, x, y);
+      } else if (draggedNodeId) {
+        const isAway = awayNodes.some(n => n.id === draggedNodeId);
+        const isThird = thirdNodes.some(n => n.id === draggedNodeId);
+        if (isAway && onAwayNodeMove) {
+          onAwayNodeMove(draggedNodeId, x, y);
+        } else if (isThird && onThirdNodeMove) {
+          onThirdNodeMove(draggedNodeId, x, y);
+        } else if (onNodeMove) {
+          onNodeMove(draggedNodeId, x, y);
+        }
+      } else if (drawingStart) {
+        setCurrentMousePos({ x, y });
+      }
+    };
+
+    const handleGlobalPointerUp = () => {
+      if (drawingStart && currentMousePos && onAddArrow) {
+        onAddArrow({
+          id: 'arrow-' + Date.now(),
+          startX: drawingStart.x,
+          startY: drawingStart.y,
+          endX: currentMousePos.x,
+          endY: currentMousePos.y,
+          type: arrowType
+        });
+      }
+      setDraggedNodeId(null);
+      setDraggedConeId(null);
+      setDraggedBallId(null);
+      setDrawingStart(null);
+      setCurrentMousePos(null);
+    };
+
+    window.addEventListener('pointermove', handleGlobalPointerMove);
+    window.addEventListener('pointerup', handleGlobalPointerUp);
+    return () => {
+      window.removeEventListener('pointermove', handleGlobalPointerMove);
+      window.removeEventListener('pointerup', handleGlobalPointerUp);
+    };
+  }, [draggedNodeId, draggedConeId, draggedBallId, drawingStart, currentMousePos, awayNodes, thirdNodes, onNodeMove, onAwayNodeMove, onThirdNodeMove, onConeMove, onMultiBallMove, onBallMove, onAddArrow, arrowType]);
 
   const handlePointerDown = (
     e: React.PointerEvent,
@@ -132,7 +189,8 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
     targetBallId?: string,
     cone?: TacticalCone
   ) => {
-    const { x, y } = calculateCanvasCoords(e);
+    if (onDragStart) onDragStart();
+    const { x, y } = calculateCanvasCoords(e.clientX, e.clientY);
 
     if (targetBallId) {
       setDraggedBallId(targetBallId);
@@ -158,47 +216,6 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
     }
   };
 
-  const handlePointerMove = (e: React.PointerEvent) => {
-    const { x, y } = calculateCanvasCoords(e);
-
-    if (draggedBallId) {
-      if (onMultiBallMove) onMultiBallMove(draggedBallId, x, y);
-      else if (onBallMove) onBallMove(x, y);
-    } else if (draggedConeId && onConeMove) {
-      onConeMove(draggedConeId, x, y);
-    } else if (draggedNodeId) {
-      const isAway = awayNodes.some(n => n.id === draggedNodeId);
-      const isThird = thirdNodes.some(n => n.id === draggedNodeId);
-      if (isAway && onAwayNodeMove) {
-        onAwayNodeMove(draggedNodeId, x, y);
-      } else if (isThird && onThirdNodeMove) {
-        onThirdNodeMove(draggedNodeId, x, y);
-      } else if (onNodeMove) {
-        onNodeMove(draggedNodeId, x, y);
-      }
-    } else if (drawingStart) {
-      setCurrentMousePos({ x, y });
-    }
-  };
-
-  const handlePointerUp = () => {
-    if (drawingStart && currentMousePos && onAddArrow) {
-      onAddArrow({
-        id: 'arrow-' + Date.now(),
-        startX: drawingStart.x,
-        startY: drawingStart.y,
-        endX: currentMousePos.x,
-        endY: currentMousePos.y,
-        type: arrowType
-      });
-    }
-    setDraggedNodeId(null);
-    setDraggedConeId(null);
-    setDraggedBallId(null);
-    setDrawingStart(null);
-    setCurrentMousePos(null);
-  };
-
   // Tactical Cone Color Map
   const coneColorStyles = {
     orange: 'from-amber-400 to-orange-600 border-amber-300 ring-orange-950/50',
@@ -210,9 +227,6 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
   return (
     <div
       ref={containerRef}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
       onPointerDown={(e) => handlePointerDown(e)}
       className={`relative w-full bg-emerald-900 overflow-hidden shadow-2xl border-4 border-emerald-950 select-none touch-none pitch-bg pitch-stripe transition-all duration-300 ${
         isPlacingCone ? 'cursor-crosshair' : ''
@@ -247,13 +261,13 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
         {/* 5-Corridor & Half-Space Tactical Zone Grid Overlay 📐 */}
         {showTacticalZones && (
           <g className="stroke-amber-400/50 stroke-[1.5] stroke-dasharray-[6_4]">
-            {/* 5 Vertical Corridors (Left Wing, Left Half-Space, Center, Right Half-Space, Right Wing) */}
+            {/* 5 Vertical Corridors */}
             <line x1="20%" y1="3%" x2="20%" y2="97%" strokeDasharray="6 4" />
             <line x1="40%" y1="3%" x2="40%" y2="97%" strokeDasharray="6 4" />
             <line x1="60%" y1="3%" x2="60%" y2="97%" strokeDasharray="6 4" />
             <line x1="80%" y1="3%" x2="80%" y2="97%" strokeDasharray="6 4" />
 
-            {/* 3 Horizontal Thirds (Defensive, Middle, Attacking) */}
+            {/* 3 Horizontal Thirds */}
             <line x1="3%" y1="33.3%" x2="97%" y2="33.3%" strokeDasharray="4 4" />
             <line x1="3%" y1="66.6%" x2="97%" y2="66.6%" strokeDasharray="4 4" />
 
@@ -274,21 +288,16 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
           };
           const stroke = colorMap[arrow.type] || '#10b981';
 
-          // Curved Bezier Control point for curved runs & wavy dribbles
           const midX = (arrow.startX + arrow.endX) / 2;
           const midY = (arrow.startY + arrow.endY) / 2;
           const dx = arrow.endX - arrow.startX;
           const dy = arrow.endY - arrow.startY;
           
-          // Real-world pitch distance estimation in yards
           const distanceYards = Math.round(Math.hypot(dx * 1.1, dy * 0.75));
-
-          // Perpendicular offset for organic player run curves
           const curveOffsetX = midX - dy * 0.18;
           const curveOffsetY = midY + dx * 0.18;
 
           if (arrow.type === 'run') {
-            // Curved Dashed Blue Player Run Vector
             const pathData = `M ${arrow.startX} ${arrow.startY} Q ${curveOffsetX} ${curveOffsetY} ${arrow.endX} ${arrow.endY}`;
             return (
               <g key={arrow.id}>
@@ -302,14 +311,12 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
                   opacity={isPlayingAnimation ? 0.5 : 1}
                 />
                 <circle cx={`${arrow.endX}%`} cy={`${arrow.endY}%`} r="6" fill={stroke} opacity={isPlayingAnimation ? 0.5 : 1} />
-                {/* Distance Badge */}
                 <text x={`${midX}%`} y={`${midY - 2}%`} fill="#93c5fd" fontSize="10" fontWeight="bold" textAnchor="middle" stroke="none">
                   {distanceYards} yds
                 </text>
               </g>
             );
           } else if (arrow.type === 'dribble') {
-            // Wavy Amber Dribble Carrying Vector
             const waveX1 = arrow.startX + dx * 0.3 + dy * 0.1;
             const waveY1 = arrow.startY + dy * 0.3 - dx * 0.1;
             const waveX2 = arrow.startX + dx * 0.7 - dy * 0.1;
@@ -332,7 +339,6 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
               </g>
             );
           } else {
-            // Solid Vector (Pass / Shot)
             return (
               <g key={arrow.id}>
                 <line
@@ -402,7 +408,6 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
             key={cone.id}
             onPointerDown={(e) => {
               e.stopPropagation();
-              (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
               handlePointerDown(e, undefined, undefined, cone);
             }}
             onDoubleClick={(e) => {
@@ -415,7 +420,7 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
             }`}
             title="Tactical Cone (Drag to move, double click to delete)"
           >
-            <div className="relative group flex flex-col items-center">
+            <div className="relative group flex flex-col items-center pointer-events-none">
               <div className={`w-5 h-5 md:w-6 md:h-6 rounded-full bg-gradient-to-tr ${colorStyle} border border-white/80 shadow-lg flex items-center justify-center ring-2`}>
                 <div className="w-1.5 h-1.5 rounded-full bg-slate-950/60"></div>
               </div>
@@ -432,7 +437,6 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
             key={node.id}
             onPointerDown={(e) => {
               e.stopPropagation();
-              (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
               handlePointerDown(e, node);
             }}
             style={{ left: `${node.x}%`, top: `${node.y}%` }}
@@ -440,7 +444,7 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
               isSelected ? 'scale-125 z-35' : 'z-25 hover:scale-110'
             }`}
           >
-            <div className="relative group flex flex-col items-center">
+            <div className="relative group flex flex-col items-center pointer-events-none">
               <div className="w-9 h-9 md:w-11 md:h-11 rounded-full bg-amber-400 border-2 border-slate-950 shadow-xl flex items-center justify-center font-black text-slate-950 text-xs ring-4 ring-amber-950/40">
                 {node.label}
               </div>
@@ -460,7 +464,6 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
             key={node.id}
             onPointerDown={(e) => {
               e.stopPropagation();
-              (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
               handlePointerDown(e, node);
             }}
             style={{ left: `${node.x}%`, top: `${node.y}%` }}
@@ -468,7 +471,7 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
               isSelected ? 'scale-125 z-30' : 'z-20 hover:scale-110'
             }`}
           >
-            <div className="relative group flex flex-col items-center">
+            <div className="relative group flex flex-col items-center pointer-events-none">
               <div className="w-9 h-9 md:w-11 md:h-11 rounded-full bg-red-600 border-2 border-white shadow-xl flex items-center justify-center font-bold text-white text-xs ring-4 ring-red-950/40">
                 {node.label}
               </div>
@@ -511,7 +514,6 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
             key={node.id}
             onPointerDown={(e) => {
               e.stopPropagation();
-              (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
               handlePointerDown(e, node);
             }}
             style={{ left: `${currentX}%`, top: `${currentY}%` }}
@@ -519,7 +521,7 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
               isSelected ? 'scale-125 z-30' : 'z-20 hover:scale-110'
             }`}
           >
-            <div className="relative group flex flex-col items-center">
+            <div className="relative group flex flex-col items-center pointer-events-none">
               <div
                 className={`w-10 h-10 md:w-12 md:h-12 rounded-full border-2 border-white shadow-xl flex items-center justify-center font-bold text-white text-xs md:text-sm transition-transform ${
                   node.role === 'GK'
@@ -560,19 +562,15 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
             key={ball.id}
             onPointerDown={(e) => {
               e.stopPropagation();
-              (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
               handlePointerDown(e, undefined, ball.id);
             }}
-            onPointerMove={handlePointerMove}
-            onPointerUp={handlePointerUp}
-            onPointerCancel={handlePointerUp}
             style={{ left: `${currentBallX}%`, top: `${currentBallY}%` }}
             className={`absolute -translate-x-1/2 -translate-y-1/2 cursor-grab active:cursor-grabbing z-50 p-2 touch-none select-none transition-transform duration-75 ${
               isSelected ? 'scale-125' : 'hover:scale-125'
             }`}
             title={`Soccer Ball ${idx + 1} ⚽ (Draggable anywhere on pitch)`}
           >
-            <div className={`w-10 h-10 md:w-12 md:h-12 rounded-full bg-white text-slate-950 flex items-center justify-center text-xl md:text-2xl shadow-2xl border-2 border-slate-950 ring-4 ${
+            <div className={`w-10 h-10 md:w-12 md:h-12 rounded-full bg-white text-slate-950 flex items-center justify-center text-xl md:text-2xl shadow-2xl border-2 border-slate-950 ring-4 pointer-events-none ${
               isSelected ? 'ring-amber-400 scale-110 shadow-amber-500/50' : 'ring-amber-400/80'
             }`}>
               ⚽
