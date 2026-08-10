@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Team, Player, FormationPreset, FormatType } from './types';
-import { getLocalTeams, saveLocalTeams, getActiveTeamId, setActiveTeamId, getAIProStatus, setAIProStatus } from './services/storage';
+import { Team, Player, FormationPreset, FormatType, TeamRole } from './types';
+import { getLocalTeams, saveLocalTeams, getActiveTeamId, setActiveTeamId, getAIProStatus, setAIProStatus, getLocalCustomDrills, getLocalScenarios } from './services/storage';
+import { auth, onAuthStateChanged, User, logoutUser, syncAllLocalToCloud, fetchUserTeams, syncTeamToCloud, generateInviteCode } from './services/firebase';
 import { FORMATION_PRESETS } from './services/formations';
 import { TacticsBoard } from './components/tactics/TacticsBoard';
 import { GameDayManager } from './components/gameday/GameDayManager';
@@ -8,7 +9,11 @@ import { RosterView } from './components/roster/RosterView';
 import { PracticeHub } from './components/practice/PracticeHub';
 import { AICoachModal } from './components/ai/AICoachModal';
 import { LandingPage } from './components/landing/LandingPage';
-import { Shield, Users, Clock, BookOpen, Bot, Sparkles, Wifi, WifiOff, Zap, Plus, ArrowLeft } from 'lucide-react';
+import { AuthModal } from './components/auth/AuthModal';
+import { TeamSwitcher } from './components/team/TeamSwitcher';
+import { TeamInviteModal } from './components/team/TeamInviteModal';
+import { JoinTeamModal } from './components/team/JoinTeamModal';
+import { Shield, Users, Clock, BookOpen, Bot, Sparkles, Wifi, WifiOff, Zap, Plus, ArrowLeft, LogIn, LogOut, Cloud, UserCheck } from 'lucide-react';
 
 export default function App() {
   const [currentView, setCurrentView] = useState<'landing' | 'app'>('landing');
@@ -18,6 +23,12 @@ export default function App() {
   const [isAIPro, setIsAIPro] = useState<boolean>(getAIProStatus);
   const [isAICoachOpen, setIsAICoachOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  // Firebase Auth & Modal States 🔐
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [isInviteModalOpen, setIsInviteModalOpen] = useState<boolean>(false);
+  const [isJoinModalOpen, setIsJoinModalOpen] = useState<boolean>(false);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -30,20 +41,50 @@ export default function App() {
       navigator.serviceWorker.register('./sw.js').catch(err => console.log('SW registration failed:', err));
     }
 
-    // Handle share link URL parameters (e.g. ?drill=drill-1)
+    // Handle share link URL parameters (e.g. ?join=STRIKE-7890)
     const params = new URLSearchParams(window.location.search);
-    if (params.get('drill')) {
+    if (params.get('join')) {
+      setCurrentView('app');
+      setIsJoinModalOpen(true);
+    } else if (params.get('drill')) {
       setCurrentView('app');
       setActiveTab('practice');
     }
 
+    // Firebase Auth Listener
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      setCurrentUser(user);
+      if (user) {
+        // Sync local guest work to cloud automatically upon auth
+        const localDrills = getLocalCustomDrills();
+        const localScenarios = getLocalScenarios();
+        await syncAllLocalToCloud(user, teams, localDrills, localScenarios);
+
+        // Load user cloud teams
+        const cloudTeams = await fetchUserTeams(user.uid);
+        if (cloudTeams.length > 0) {
+          setTeams(cloudTeams);
+          saveLocalTeams(cloudTeams);
+          if (!cloudTeams.some(t => t.id === activeTeamId)) {
+            setActiveTeamIdState(cloudTeams[0].id);
+            setActiveTeamId(cloudTeams[0].id);
+          }
+        }
+      }
+    });
+
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      unsubscribe();
     };
   }, []);
 
   const activeTeam = teams.find(t => t.id === activeTeamId) || teams[0];
+
+  // Derive active user role on active team
+  const currentMember = activeTeam?.members?.find(m => m.uid === currentUser?.uid);
+  const currentUserRole: TeamRole = currentMember ? currentMember.role : (activeTeam?.ownerId === currentUser?.uid ? 'coach' : 'coach');
 
   const handleSelectTeam = (teamId: string) => {
     setActiveTeamIdState(teamId);
@@ -54,11 +95,73 @@ export default function App() {
     const newTeams = teams.map(t => t.id === updatedTeam.id ? updatedTeam : t);
     setTeams(newTeams);
     saveLocalTeams(newTeams);
+    if (currentUser) {
+      syncTeamToCloud(updatedTeam, currentUser);
+    }
   };
 
-  const handleUpdateRoster = (newRoster: Player[]) => {
-    const updated = { ...activeTeam, roster: newRoster };
-    handleUpdateTeam(updated);
+  const handleCreateNewTeam = () => {
+    const newTeamId = 'team-' + Date.now();
+    const newTeam: Team = {
+      id: newTeamId,
+      name: `Team ${teams.length + 1}`,
+      ageGroup: 'U11-U12',
+      format: '9v9',
+      playingStyle: 'youth-buildout',
+      ownerId: currentUser?.uid || 'guest-owner',
+      inviteCode: generateInviteCode(`Team ${teams.length + 1}`),
+      members: currentUser ? [{
+        uid: currentUser.uid,
+        email: currentUser.email || '',
+        displayName: currentUser.displayName || 'Head Coach',
+        role: 'coach',
+        joinedAt: new Date().toISOString()
+      }] : [],
+      roster: [
+        { id: 'p1', name: 'Alex Martinez', number: 10, isAbsent: false, preferredPositions: ['ST'], attributes: { speed: 8, dribbling: 8, passing: 8, stamina: 7, defending: 5 } },
+        { id: 'p2', name: 'Liam Henderson', number: 1, isAbsent: false, preferredPositions: ['GK'], attributes: { speed: 6, dribbling: 5, passing: 7, stamina: 7, defending: 9 } }
+      ]
+    };
+
+    const updated = [newTeam, ...teams];
+    setTeams(updated);
+    saveLocalTeams(updated);
+    handleSelectTeam(newTeamId);
+    if (currentUser) {
+      syncTeamToCloud(newTeam, currentUser);
+    }
+  };
+
+  const handleJoinTeamSuccess = (joinedTeam: Team) => {
+    const existingIdx = teams.findIndex(t => t.id === joinedTeam.id);
+    let updated;
+    if (existingIdx >= 0) {
+      updated = teams.map((t, i) => i === existingIdx ? joinedTeam : t);
+    } else {
+      updated = [joinedTeam, ...teams];
+    }
+    setTeams(updated);
+    saveLocalTeams(updated);
+    handleSelectTeam(joinedTeam.id);
+    setIsJoinModalOpen(false);
+  };
+
+  const handleAuthSuccess = async (user: User) => {
+    setCurrentUser(user);
+    setIsAuthModalOpen(false);
+
+    // Sync guest work to cloud
+    const localDrills = getLocalCustomDrills();
+    const localScenarios = getLocalScenarios();
+    await syncAllLocalToCloud(user, teams, localDrills, localScenarios);
+
+    const cloudTeams = await fetchUserTeams(user.uid);
+    if (cloudTeams.length > 0) {
+      setTeams(cloudTeams);
+      saveLocalTeams(cloudTeams);
+      setActiveTeamIdState(cloudTeams[0].id);
+      setActiveTeamId(cloudTeams[0].id);
+    }
   };
 
   const handleFormatChange = (format: FormatType) => {
@@ -91,7 +194,7 @@ export default function App() {
       {/* App Header */}
       <header className="glass-panel sticky top-0 z-40 border-b border-slate-800">
         <div className="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
-          {/* Left: Brand & Back to Landing */}
+          {/* Left: Brand, Back to Landing & Team Switcher */}
           <div className="flex items-center space-x-3">
             <button
               onClick={() => setCurrentView('landing')}
@@ -108,19 +211,19 @@ export default function App() {
               <h1 className="text-base font-black text-white hidden sm:block">TacticalSoccer AI</h1>
             </div>
 
-            {/* Team Switcher */}
-            <select
-              value={activeTeam.id}
-              onChange={(e) => handleSelectTeam(e.target.value)}
-              className="bg-slate-900 text-white text-xs px-3 py-1.5 rounded-xl border border-slate-700 font-semibold focus:outline-none focus:ring-2 focus:ring-emerald-500"
-            >
-              {teams.map(t => (
-                <option key={t.id} value={t.id}>{t.name} ({t.format})</option>
-              ))}
-            </select>
+            {/* Team Switcher Dropdown */}
+            <TeamSwitcher
+              teams={teams}
+              activeTeam={activeTeam}
+              userRole={currentUserRole}
+              onSelectTeam={handleSelectTeam}
+              onCreateTeam={handleCreateNewTeam}
+              onOpenInviteModal={() => setIsInviteModalOpen(true)}
+              onOpenJoinModal={() => setIsJoinModalOpen(true)}
+            />
           </div>
 
-          {/* Right Controls: Format Selector, Sync Status, AI Pro Badge */}
+          {/* Right Controls: Auth Profile, Format Selector, Sync Status, AI Pro Badge */}
           <div className="flex items-center space-x-3">
             {/* Age Format Selector */}
             <div className="flex items-center space-x-1 bg-slate-900 p-1 rounded-xl border border-slate-800 text-xs">
@@ -136,6 +239,29 @@ export default function App() {
                 </button>
               ))}
             </div>
+
+            {/* Firebase Auth Profile Button / Badge 🔐 */}
+            {currentUser ? (
+              <div className="flex items-center space-x-2 bg-slate-900 px-3 py-1.5 rounded-xl border border-slate-800">
+                <UserCheck className="w-4 h-4 text-emerald-400" />
+                <span className="text-xs font-bold text-white hidden lg:inline">{currentUser.displayName || currentUser.email?.split('@')[0]}</span>
+                <button
+                  onClick={() => logoutUser()}
+                  className="p-1 hover:text-red-400 text-slate-400 transition"
+                  title="Sign Out"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setIsAuthModalOpen(true)}
+                className="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-xl flex items-center gap-1.5 shadow-md shadow-emerald-500/20 active:scale-95 transition"
+              >
+                <Cloud className="w-4 h-4" />
+                <span className="hidden sm:inline">Sign In / Sync</span>
+              </button>
+            )}
 
             {/* Sync Badge */}
             <div className={`hidden md:flex items-center space-x-1.5 px-2.5 py-1 rounded-xl text-[11px] font-semibold border ${
@@ -241,6 +367,32 @@ export default function App() {
         isOpen={isAICoachOpen}
         onClose={() => setIsAICoachOpen(false)}
       />
+
+      {/* Auth Modal 🔐 */}
+      {isAuthModalOpen && (
+        <AuthModal
+          onClose={() => setIsAuthModalOpen(false)}
+          onAuthSuccess={handleAuthSuccess}
+        />
+      )}
+
+      {/* Team Invite Modal 📩 */}
+      {isInviteModalOpen && (
+        <TeamInviteModal
+          team={activeTeam}
+          currentUserId={currentUser?.uid}
+          onClose={() => setIsInviteModalOpen(false)}
+        />
+      )}
+
+      {/* Join Team Modal 🔑 */}
+      {isJoinModalOpen && (
+        <JoinTeamModal
+          user={currentUser}
+          onClose={() => setIsJoinModalOpen(false)}
+          onJoinSuccess={handleJoinTeamSuccess}
+        />
+      )}
     </div>
   );
 }

@@ -34,6 +34,25 @@ export type PlayingStyle =
   | 'low-block'        // Compact defensive rigor & counter-attacks
   | 'custom';          // Custom prompt-defined philosophy
 
+export type TeamRole = 'coach' | 'assistant_coach' | 'manager' | 'communications' | 'parent';
+
+export interface TeamMember {
+  uid: string;
+  email: string;
+  displayName: string;
+  role: TeamRole;
+  joinedAt: string;
+}
+
+export interface UserProfile {
+  uid: string;
+  email: string;
+  displayName: string;
+  photoURL?: string;
+  teamIds: string[];
+  activeTeamId: string;
+}
+
 export interface Team {
   id: string;
   name: string;
@@ -43,6 +62,9 @@ export interface Team {
   customStyleNotes?: string;
   preferredFormationId?: string;
   roster: Player[];
+  ownerId?: string;
+  inviteCode?: string;
+  members?: TeamMember[];
 }
 
 export interface PitchNode {
