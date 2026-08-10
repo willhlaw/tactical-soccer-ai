@@ -13,6 +13,134 @@ export interface AIScenarioResult {
   arrows: TacticalArrow[];
   cones: TacticalCone[];
   balls: Array<{ id: string; x: number; y: number }>;
+  keyframes?: any[];
+}
+
+/**
+ * 5-Sequence Preset: Right-Wing Overlap & Box Entry Attack
+ */
+export function getRightWingOverlapAttackPlay(): AIScenarioResult {
+  const initialNodes: PitchNode[] = [
+    { id: 'cm-1', label: 'CM', role: 'CM', x: 50, y: 50, team: 'home' },
+    { id: 'rw-1', label: 'RW', role: 'RW', x: 80, y: 45, team: 'home' },
+    { id: 'st-1', label: 'ST', role: 'ST', x: 50, y: 20, team: 'home' },
+    { id: 'gk-1', label: 'GK', role: 'GK', x: 50, y: 90, team: 'home' },
+    { id: 'lb-1', label: 'LB', role: 'LB', x: 25, y: 70, team: 'home' },
+    { id: 'rb-1', label: 'RB', role: 'RB', x: 75, y: 70, team: 'home' },
+  ];
+
+  const keyframe1 = {
+    id: 'seq-1',
+    timestamp: 0.0,
+    label: 'Seq 1: CM Through Pass to RW',
+    nodes: initialNodes.map(n => {
+      if (n.role === 'CM') return { ...n, y: 35 }; // CM runs up to 30-yard offensive end
+      if (n.role === 'ST') return { ...n, y: 15 }; // ST moves slightly in front of goal
+      if (n.role === 'RW') return { ...n, x: 82, y: 30 }; // RW runs on to ball
+      return n;
+    }),
+    awayNodes: [],
+    thirdNodes: [],
+    balls: [{ id: 'ball-1', x: 82, y: 30 }],
+    arrows: [
+      { id: 'a1', startX: 50, startY: 50, endX: 82, endY: 30, type: 'pass' as const },
+      { id: 'a2', startX: 80, startY: 45, endX: 82, endY: 30, type: 'run' as const }
+    ],
+    cones: []
+  };
+
+  const keyframe2 = {
+    id: 'seq-2',
+    timestamp: 2.0,
+    label: 'Seq 2: RW Dribbles to End Line',
+    nodes: initialNodes.map(n => {
+      if (n.role === 'RW') return { ...n, x: 85, y: 15 }; // RW dribbles close to end line
+      if (n.role === 'CM') return { ...n, x: 50, y: 25 }; // CM runs to edge of 18-yard box
+      if (n.role === 'ST') return { ...n, x: 45, y: 12 };
+      return n;
+    }),
+    awayNodes: [],
+    thirdNodes: [],
+    balls: [{ id: 'ball-1', x: 85, y: 15 }],
+    arrows: [
+      { id: 'a3', startX: 82, startY: 30, endX: 85, endY: 15, type: 'dribble' as const },
+      { id: 'a4', startX: 50, startY: 35, endX: 50, endY: 25, type: 'run' as const }
+    ],
+    cones: []
+  };
+
+  const keyframe3 = {
+    id: 'seq-3',
+    timestamp: 4.0,
+    label: 'Seq 3: Cutback Pass to CM at 18yd Box',
+    nodes: initialNodes.map(n => {
+      if (n.role === 'RW') return { ...n, x: 85, y: 15 };
+      if (n.role === 'CM') return { ...n, x: 50, y: 25 };
+      if (n.role === 'ST') return { ...n, x: 40, y: 10 };
+      return n;
+    }),
+    awayNodes: [],
+    thirdNodes: [],
+    balls: [{ id: 'ball-1', x: 50, y: 25 }],
+    arrows: [
+      { id: 'a5', startX: 85, startY: 15, endX: 50, endY: 25, type: 'pass' as const }
+    ],
+    cones: []
+  };
+
+  const keyframe4 = {
+    id: 'seq-4',
+    timestamp: 6.0,
+    label: 'Seq 4: CM Shoots at Goal',
+    nodes: initialNodes.map(n => {
+      if (n.role === 'CM') return { ...n, x: 50, y: 23 };
+      if (n.role === 'ST') return { ...n, x: 38, y: 10 };
+      if (n.role === 'RW') return { ...n, x: 80, y: 15 };
+      return n;
+    }),
+    awayNodes: [],
+    thirdNodes: [],
+    balls: [{ id: 'ball-1', x: 50, y: 12 }],
+    arrows: [
+      { id: 'a6', startX: 50, startY: 23, endX: 50, endY: 2, type: 'shot' as const }
+    ],
+    cones: []
+  };
+
+  const keyframe5 = {
+    id: 'seq-5',
+    timestamp: 8.0,
+    label: 'Seq 5: GOAL! (Ball in Net)',
+    nodes: initialNodes.map(n => {
+      if (n.role === 'CM') return { ...n, x: 50, y: 20 };
+      if (n.role === 'ST') return { ...n, x: 35, y: 10 };
+      if (n.role === 'RW') return { ...n, x: 75, y: 15 };
+      return n;
+    }),
+    awayNodes: [],
+    thirdNodes: [],
+    balls: [{ id: 'ball-1', x: 50, y: 2 }],
+    arrows: [],
+    cones: []
+  };
+
+  return {
+    title: 'Right-Wing Overlap & Box Entry Attack',
+    description: '5-Sequence Tactical Attack: CM through ball -> RW wing run -> Cutback to 18yd box -> CM Shot -> GOAL!',
+    isDrillMode: false,
+    homeCount: 6,
+    awayCount: 0,
+    thirdCount: 0,
+    nodes: initialNodes,
+    awayNodes: [],
+    thirdNodes: [],
+    arrows: [
+      { id: 'a1', startX: 50, startY: 50, endX: 82, endY: 30, type: 'pass' }
+    ],
+    cones: [],
+    balls: [{ id: 'ball-1', x: 50, y: 50 }],
+    keyframes: [keyframe1, keyframe2, keyframe3, keyframe4, keyframe5]
+  };
 }
 
 export function generateAIScenario(prompt: string, format: FormatType = '11v11'): AIScenarioResult {
