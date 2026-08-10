@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { PitchCanvas } from './PitchCanvas';
-import { Team, PitchNode, TacticalArrow, TacticalCone, FormationPreset, TacticalScenario } from '../../types';
+import { Team, PitchNode, TacticalArrow, TacticalCone, FormationPreset, TacticalScenario, TacticalKeyframe } from '../../types';
 import { FORMATION_PRESETS, getFormationsForFormat } from '../../services/formations';
 import { getLocalScenarios, saveLocalScenario, deleteLocalScenario, getTacticsBoardFullscreenDefault, setTacticsBoardFullscreenDefault } from '../../services/storage';
 import { SavedScenariosModal } from './SavedScenariosModal';
 import { AIScenarioGeneratorModal } from './AIScenarioGeneratorModal';
 import { AIScenarioResult } from '../../services/aiScenarioEngine';
-import { Play, Pause, RotateCcw, Trash2, Shield, Zap, Maximize2, Minimize2, PenTool, Users, Star, Plus, Minus, Target, Grid, Save, Folder, Check, X, Sparkles, Monitor } from 'lucide-react';
+import { Play, Pause, RotateCcw, Trash2, Shield, Zap, Maximize2, Minimize2, PenTool, Users, Star, Plus, Minus, Target, Grid, Save, Folder, Check, X, Sparkles, Monitor, Film, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface TacticsBoardProps {
   team: Team;
@@ -46,6 +46,11 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
   const [cones, setCones] = useState<TacticalCone[]>([]);
   const [isPlacingCone, setIsPlacingCone] = useState<boolean>(false);
   const [coneColor, setConeColor] = useState<'orange' | 'yellow' | 'blue' | 'red'>('orange');
+
+  // Keyframe Sequence Timeline State 🎬
+  const [keyframes, setKeyframes] = useState<TacticalKeyframe[]>([]);
+  const [activeKeyframeIndex, setActiveKeyframeIndex] = useState<number>(0);
+  const [timelineProgress, setTimelineProgress] = useState<number>(0);
 
   // Saved Scenarios State 📁 & AI Generator State ✨
   const [scenarios, setScenarios] = useState<TacticalScenario[]>(() => getLocalScenarios());
@@ -152,6 +157,39 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
 
   const handleMultiBallMove = (ballId: string, newX: number, newY: number) => {
     setBalls(prev => prev.map(b => b.id === ballId ? { ...b, x: newX, y: newY } : b));
+  };
+
+  // Keyframe Sequence Timeline Handlers 🎬
+  const handleAddKeyframe = () => {
+    const nextTimestamp = (keyframes.length + 1) * 2.0;
+    const newFrame: TacticalKeyframe = {
+      id: 'kf-' + Date.now(),
+      timestamp: nextTimestamp,
+      label: `Step ${keyframes.length + 1} (${nextTimestamp.toFixed(1)}s)`,
+      nodes: JSON.parse(JSON.stringify(nodes)),
+      awayNodes: JSON.parse(JSON.stringify(awayNodes)),
+      thirdNodes: JSON.parse(JSON.stringify(thirdNodes)),
+      balls: JSON.parse(JSON.stringify(balls)),
+      arrows: JSON.parse(JSON.stringify(arrows)),
+      cones: JSON.parse(JSON.stringify(cones))
+    };
+
+    setKeyframes(prev => [...prev, newFrame]);
+    setActiveKeyframeIndex(keyframes.length);
+  };
+
+  const handleSelectKeyframe = (index: number) => {
+    if (index < 0 || index >= keyframes.length) return;
+    setActiveKeyframeIndex(index);
+    const kf = keyframes[index];
+    if (kf) {
+      setNodes(kf.nodes);
+      setAwayNodes(kf.awayNodes);
+      setThirdNodes(kf.thirdNodes);
+      setBalls(kf.balls);
+      setArrows(kf.arrows);
+      setCones(kf.cones);
+    }
   };
 
   // AI Scenario Generator Handler ✨
@@ -302,7 +340,8 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
       arrows: JSON.parse(JSON.stringify(arrows)),
       cones: JSON.parse(JSON.stringify(cones)),
       ballPos: balls[0] ? { x: balls[0].x, y: balls[0].y } : { x: 50, y: 50 },
-      balls: JSON.parse(JSON.stringify(balls))
+      balls: JSON.parse(JSON.stringify(balls)),
+      keyframes: JSON.parse(JSON.stringify(keyframes))
     };
 
     saveLocalScenario(newScenario);
@@ -328,6 +367,10 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
       setBalls(sc.balls);
     } else {
       setBalls([{ id: 'ball-1', x: sc.ballPos?.x || 50, y: sc.ballPos?.y || 50 }]);
+    }
+    if (sc.keyframes && sc.keyframes.length > 0) {
+      setKeyframes(sc.keyframes);
+      setActiveKeyframeIndex(0);
     }
     if ((sc.awayNodes && sc.awayNodes.length > 0) || (sc.thirdNodes && sc.thirdNodes.length > 0)) {
       setShowOpposition(true);
@@ -576,6 +619,9 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
             onDeleteCone={handleDeleteCone}
             isPlacingCone={isPlacingCone}
             coneColor={coneColor}
+            keyframes={keyframes}
+            activeKeyframeIndex={activeKeyframeIndex}
+            timelineProgress={timelineProgress}
           />
         </div>
 
@@ -772,6 +818,51 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
         </div>
       </div>
 
+      {/* KEYFRAME SEQUENCE TIMELINE CONTROL BAR 🎬 */}
+      <div className="glass-panel p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 border-2 border-cyan-500/30 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 shadow-xl">
+        <div className="flex items-center space-x-3">
+          <div className="p-2 bg-cyan-500/20 text-cyan-400 rounded-xl border border-cyan-500/30">
+            <Film className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-xs font-black text-white flex items-center gap-2">
+              Time Sequence Keyframe Timeline
+              <span className="px-2 py-0.5 bg-cyan-500/20 text-cyan-300 text-[10px] rounded-full border border-cyan-500/30 font-bold">
+                {keyframes.length} Keyframes
+              </span>
+            </h3>
+            <p className="text-[11px] text-slate-400">Move players/ball, draw vectors, then add time sequence keyframes to demonstrate movement over time</p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Keyframe Sequence Pills */}
+          <div className="flex items-center space-x-1.5 overflow-x-auto">
+            {keyframes.map((kf, index) => (
+              <button
+                key={kf.id}
+                onClick={() => handleSelectKeyframe(index)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition border ${
+                  activeKeyframeIndex === index
+                    ? 'bg-cyan-500 text-slate-950 border-cyan-400 font-black shadow'
+                    : 'bg-slate-950 text-slate-300 border-slate-800 hover:text-white'
+                }`}
+              >
+                {kf.label}
+              </button>
+            ))}
+          </div>
+
+          <button
+            onClick={handleAddKeyframe}
+            className="px-4 py-2 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs rounded-xl transition flex items-center gap-1.5 shadow-md shadow-cyan-500/20 active:scale-95"
+          >
+            <Plus className="w-4 h-4" />
+            <span>➕ Add Time Sequence (+ Keyframe)</span>
+          </button>
+        </div>
+      </div>
+
       {/* Drill Mode 3-Team Player Counter & Cone Toolbar */}
       {isDrillMode ? (
         <div className="glass-panel p-4 rounded-2xl space-y-4 border-2 border-cyan-500/30 bg-cyan-950/20">
@@ -949,11 +1040,14 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
             onDeleteCone={handleDeleteCone}
             isPlacingCone={isPlacingCone}
             coneColor={coneColor}
+            keyframes={keyframes}
+            activeKeyframeIndex={activeKeyframeIndex}
+            timelineProgress={timelineProgress}
           />
 
-          {/* Normal Mode Touch Control Bar */}
+          {/* Normal Mode Touch Control Bar with Advanced Vector Modes */}
           <div className="glass-panel p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 border-2 border-emerald-500/20 shadow-xl">
-            {/* Draw Mode & Cone Controls */}
+            {/* Draw Mode & Vector Types */}
             <div className="flex flex-wrap items-center gap-3">
               <button
                 onClick={() => { setIsDrawingArrow(!isDrawingArrow); setIsPlacingCone(false); }}
@@ -966,6 +1060,43 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
                 <PenTool className="w-4 h-4" />
                 <span>{isDrawingArrow ? 'Drawing Vector Mode' : '+ Draw Vector'}</span>
               </button>
+
+              {isDrawingArrow && (
+                <div className="flex items-center space-x-1.5 bg-slate-950 p-1.5 rounded-2xl border border-slate-800">
+                  <button
+                    onClick={() => setArrowType('pass')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                      arrowType === 'pass' ? 'bg-emerald-500 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    🟩 Pass
+                  </button>
+                  <button
+                    onClick={() => setArrowType('run')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                      arrowType === 'run' ? 'bg-blue-500 text-white shadow' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    🟦 Run Curve
+                  </button>
+                  <button
+                    onClick={() => setArrowType('dribble')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                      arrowType === 'dribble' ? 'bg-amber-500 text-slate-950 shadow' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    🟧 Dribble
+                  </button>
+                  <button
+                    onClick={() => setArrowType('shot')}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition ${
+                      arrowType === 'shot' ? 'bg-red-500 text-white shadow' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    🟥 Shot
+                  </button>
+                </div>
+              )}
 
               {/* Cone Placer Button & Grid Presets 🔶 */}
               <div className="flex items-center space-x-2">
@@ -996,37 +1127,10 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
                     ))}
                   </div>
                 )}
-
-                {/* Cone Grid Helpers */}
-                <div className="flex items-center space-x-1">
-                  <button
-                    onClick={handleApplyBoxGrid}
-                    className="px-3 py-3 bg-slate-900 hover:bg-slate-800 text-orange-300 font-bold text-xs rounded-2xl border border-slate-800 transition"
-                    title="Place 4 Corner Cones Box Grid"
-                  >
-                    Box Grid
-                  </button>
-                  <button
-                    onClick={handleApplyGatesGrid}
-                    className="px-3 py-3 bg-slate-900 hover:bg-slate-800 text-yellow-300 font-bold text-xs rounded-2xl border border-slate-800 transition"
-                    title="Place 2 Passing Gates"
-                  >
-                    Gates
-                  </button>
-                  {cones.length > 0 && (
-                    <button
-                      onClick={handleClearCones}
-                      className="px-2.5 py-3 bg-slate-900 hover:bg-red-500/20 text-slate-400 hover:text-red-400 font-bold text-xs rounded-2xl border border-slate-800 transition"
-                      title="Clear All Cones"
-                    >
-                      Clear 🧹
-                    </button>
-                  )}
-                </div>
               </div>
             </div>
 
-            {/* Action Buttons */}
+            {/* GSAP Motion Animation Control Buttons */}
             <div className="flex items-center space-x-3">
               <button
                 onClick={() => setIsPlayingAnimation(!isPlayingAnimation)}
@@ -1035,7 +1139,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
                     ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 ring-4 ring-amber-500/30 animate-pulse'
                     : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 ring-4 ring-emerald-500/30 scale-105'
                 }`}
-                title={isPlayingAnimation ? "Pause Animation" : "Play Drill Animation"}
+                title={isPlayingAnimation ? "Pause Sequence Animation" : "Play GSAP Motion Animation"}
               >
                 {isPlayingAnimation ? <Pause className="w-7 h-7 fill-current" /> : <Play className="w-7 h-7 fill-current ml-0.5" />}
               </button>
@@ -1082,7 +1186,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
           <div className="space-y-2">
             <div className="text-xs font-semibold text-slate-400 flex items-center justify-between">
               <span>Position Assignments:</span>
-              <span className="text-[10px] text-amber-400">⚽ {balls.length} Ball(s) &amp; 🔶 Cones</span>
+              <span className="text-[10px] text-amber-400">🎬 GSAP Motion Engine Active</span>
             </div>
             <div className="space-y-1.5 max-h-64 overflow-y-auto pr-1">
               {nodes.map(n => {

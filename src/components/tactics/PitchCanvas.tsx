@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { PitchNode, TacticalArrow, TacticalCone, Player } from '../../types';
+import gsap from 'gsap';
+import { PitchNode, TacticalArrow, TacticalCone, Player, TacticalKeyframe } from '../../types';
 
 interface PitchCanvasProps {
   nodes: PitchNode[];
@@ -30,6 +31,11 @@ interface PitchCanvasProps {
   onDeleteCone?: (coneId: string) => void;
   isPlacingCone?: boolean;
   coneColor?: 'orange' | 'yellow' | 'blue' | 'red';
+
+  // Keyframe Sequence Timeline Props 🎬
+  keyframes?: TacticalKeyframe[];
+  activeKeyframeIndex?: number;
+  timelineProgress?: number; // 0.0 to 1.0
 }
 
 export const PitchCanvas: React.FC<PitchCanvasProps> = ({
@@ -55,7 +61,10 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
   onConeMove,
   onDeleteCone,
   isPlacingCone = false,
-  coneColor = 'orange'
+  coneColor = 'orange',
+  keyframes = [],
+  activeKeyframeIndex = 0,
+  timelineProgress = 0
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [draggedNodeId, setDraggedNodeId] = useState<string | null>(null);
@@ -64,7 +73,7 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
   const [drawingStart, setDrawingStart] = useState<{ x: number; y: number } | null>(null);
   const [currentMousePos, setCurrentMousePos] = useState<{ x: number; y: number } | null>(null);
   
-  // Animation state: freeze progress on pause instead of resetting!
+  // GSAP Driven 60fps Playback Interpolation Progress
   const [animProgress, setAnimProgress] = useState<number>(0);
   const animProgressRef = useRef<number>(0);
 
@@ -74,31 +83,28 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
     return [{ id: 'ball-1', x: ballPos.x, y: ballPos.y }];
   }, [balls, ballPos]);
 
-  // 60fps Animation Loop with Pause Freeze
+  // GSAP Animation Loop Integration
   useEffect(() => {
-    let animFrame: number;
-    let lastTime: number | null = null;
-    const SPEED = 0.0004; // Movement speed factor per ms
-
+    let tween: gsap.core.Tween;
     if (isPlayingAnimation) {
-      const animate = (timestamp: number) => {
-        if (lastTime === null) lastTime = timestamp;
-        const delta = timestamp - lastTime;
-        lastTime = timestamp;
-
-        animProgressRef.current = (animProgressRef.current + delta * SPEED) % 1.0;
-        setAnimProgress(animProgressRef.current);
-        animFrame = requestAnimationFrame(animate);
-      };
-      animFrame = requestAnimationFrame(animate);
+      tween = gsap.to(animProgressRef, {
+        current: 1.0,
+        duration: 3.5,
+        repeat: -1,
+        ease: 'power1.inOut',
+        onUpdate: () => {
+          setAnimProgress(animProgressRef.current);
+        }
+      });
     } else {
-      lastTime = null;
+      animProgressRef.current = timelineProgress;
+      setAnimProgress(timelineProgress);
     }
 
     return () => {
-      if (animFrame) cancelAnimationFrame(animFrame);
+      if (tween) tween.kill();
     };
-  }, [isPlayingAnimation]);
+  }, [isPlayingAnimation, timelineProgress]);
 
   const calculateCanvasCoords = (e: React.PointerEvent) => {
     if (!containerRef.current) return { x: 50, y: 50 };
@@ -204,7 +210,7 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
           : 'aspect-[4/3] md:aspect-[16/10] rounded-2xl'
       }`}
     >
-      {/* Field Markings Layer */}
+      {/* Field Markings & Tactical Vectors Layer */}
       <svg className="absolute inset-0 w-full h-full pointer-events-none stroke-white/40 fill-none stroke-[2]">
         {/* Outer Boundary */}
         <rect x="3%" y="3%" width="94%" height="94%" rx="8" />
@@ -226,36 +232,84 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
         <rect x="40%" y="0.5%" width="20%" height="2.5%" fill="rgba(255,255,255,0.2)" />
         <rect x="40%" y="97%" width="20%" height="2.5%" fill="rgba(255,255,255,0.2)" />
 
-        {/* Tactical Arrows Layer */}
+        {/* Advanced Curved & Wavy Vector Arrow Layer ↗️ */}
         {arrows.map(arrow => {
           const colorMap = {
-            pass: '#10b981',
-            run: '#3b82f6',
-            dribble: '#f59e0b',
-            shot: '#ef4444'
+            pass: '#10b981',    // Emerald Green
+            run: '#3b82f6',     // Royal Blue
+            dribble: '#f59e0b', // Amber Gold
+            shot: '#ef4444'     // Bright Red
           };
           const stroke = colorMap[arrow.type] || '#10b981';
-          const isDashed = arrow.type === 'run';
 
-          return (
-            <g key={arrow.id}>
-              <line
-                x1={`${arrow.startX}%`}
-                y1={`${arrow.startY}%`}
-                x2={`${arrow.endX}%`}
-                y2={`${arrow.endY}%`}
-                stroke={stroke}
-                strokeWidth="4"
-                strokeDasharray={isDashed ? '6 4' : 'none'}
-                strokeLinecap="round"
-                opacity={isPlayingAnimation ? 0.4 : 1}
-              />
-              <circle cx={`${arrow.endX}%`} cy={`${arrow.endY}%`} r="6" fill={stroke} opacity={isPlayingAnimation ? 0.5 : 1} />
-            </g>
-          );
+          // Curved Bezier Control point for curved runs & wavy dribbles
+          const midX = (arrow.startX + arrow.endX) / 2;
+          const midY = (arrow.startY + arrow.endY) / 2;
+          const dx = arrow.endX - arrow.startX;
+          const dy = arrow.endY - arrow.startY;
+          
+          // Perpendicular offset for organic player run curves
+          const curveOffsetX = midX - dy * 0.18;
+          const curveOffsetY = midY + dx * 0.18;
+
+          if (arrow.type === 'run') {
+            // Curved Dashed Blue Player Run Vector
+            const pathData = `M ${arrow.startX} ${arrow.startY} Q ${curveOffsetX} ${curveOffsetY} ${arrow.endX} ${arrow.endY}`;
+            return (
+              <g key={arrow.id}>
+                <path
+                  d={pathData}
+                  stroke={stroke}
+                  strokeWidth="4"
+                  strokeDasharray="6 4"
+                  strokeLinecap="round"
+                  fill="none"
+                  opacity={isPlayingAnimation ? 0.5 : 1}
+                />
+                <circle cx={`${arrow.endX}%`} cy={`${arrow.endY}%`} r="6" fill={stroke} opacity={isPlayingAnimation ? 0.5 : 1} />
+              </g>
+            );
+          } else if (arrow.type === 'dribble') {
+            // Wavy Amber Dribble Carrying Vector
+            const waveX1 = arrow.startX + dx * 0.3 + dy * 0.1;
+            const waveY1 = arrow.startY + dy * 0.3 - dx * 0.1;
+            const waveX2 = arrow.startX + dx * 0.7 - dy * 0.1;
+            const waveY2 = arrow.startY + dy * 0.7 + dx * 0.1;
+            const pathData = `M ${arrow.startX} ${arrow.startY} C ${waveX1} ${waveY1}, ${waveX2} ${waveY2}, ${arrow.endX} ${arrow.endY}`;
+            return (
+              <g key={arrow.id}>
+                <path
+                  d={pathData}
+                  stroke={stroke}
+                  strokeWidth="4"
+                  strokeLinecap="round"
+                  fill="none"
+                  opacity={isPlayingAnimation ? 0.5 : 1}
+                />
+                <circle cx={`${arrow.endX}%`} cy={`${arrow.endY}%`} r="6" fill={stroke} opacity={isPlayingAnimation ? 0.5 : 1} />
+              </g>
+            );
+          } else {
+            // Solid Vector (Pass / Shot)
+            return (
+              <g key={arrow.id}>
+                <line
+                  x1={`${arrow.startX}%`}
+                  y1={`${arrow.startY}%`}
+                  x2={`${arrow.endX}%`}
+                  y2={`${arrow.endY}%`}
+                  stroke={stroke}
+                  strokeWidth="4"
+                  strokeLinecap="round"
+                  opacity={isPlayingAnimation ? 0.5 : 1}
+                />
+                <circle cx={`${arrow.endX}%`} cy={`${arrow.endY}%`} r="6" fill={stroke} opacity={isPlayingAnimation ? 0.5 : 1} />
+              </g>
+            );
+          }
         })}
 
-        {/* Live Drawing Arrow */}
+        {/* Live Drawing Arrow preview */}
         {drawingStart && currentMousePos && (
           <line
             x1={`${drawingStart.x}%`}
@@ -422,7 +476,7 @@ export const PitchCanvas: React.FC<PitchCanvasProps> = ({
         let currentBallX = ball.x;
         let currentBallY = ball.y;
 
-        if (idx === 0 && isPlayingAnimation && animProgress > 0 && arrows.length > 0) {
+        if (idx === 0 && animProgress > 0 && arrows.length > 0) {
           const passArrow = arrows.find(a => a.type === 'pass' || a.type === 'shot') || arrows[0];
           if (passArrow) {
             currentBallX = passArrow.startX + (passArrow.endX - passArrow.startX) * animProgress;

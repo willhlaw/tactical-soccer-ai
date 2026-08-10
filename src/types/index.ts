@@ -133,6 +133,18 @@ export interface Drill {
   isCustom?: boolean;
 }
 
+export interface TacticalKeyframe {
+  id: string;
+  timestamp: number; // in seconds (0.0, 2.0, 4.0)
+  label: string; // e.g. "Sequence 1", "Sequence 2"
+  nodes: PitchNode[];
+  awayNodes: PitchNode[];
+  thirdNodes: PitchNode[];
+  balls: Array<{ id: string; x: number; y: number }>;
+  arrows: TacticalArrow[];
+  cones: TacticalCone[];
+}
+
 export interface TacticalScenario {
   id: string;
   title: string;
@@ -151,6 +163,7 @@ export interface TacticalScenario {
   cones: TacticalCone[];
   ballPos: { x: number; y: number };
   balls?: Array<{ id: string; x: number; y: number }>;
+  keyframes?: TacticalKeyframe[];
 }
 
 export interface AICoachMessage {
