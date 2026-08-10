@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, Sparkles, Check, Play, Smartphone, WifiOff, Users, ArrowRight, Zap } from 'lucide-react';
+import { Shield, Sparkles, Check, Play, Pause, Smartphone, WifiOff, Users, ArrowRight, Zap, RotateCcw } from 'lucide-react';
 import { PitchCanvas } from '../tactics/PitchCanvas';
 import { DEMO_PLAYERS } from '../../services/storage';
 import { PitchNode, TacticalArrow } from '../../types';
@@ -21,9 +21,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp, onSelectP
     { id: 'd7', label: 'ST', role: 'ST', x: 50, y: 20, team: 'home', assignedPlayerId: 'p1' },
   ]);
 
-  const [arrows, setArrows] = useState<TacticalArrow[]>([
-    { id: 'da1', startX: 50, startY: 88, endX: 70, endY: 72, type: 'pass' },
-    { id: 'da2', startX: 70, startY: 72, endX: 50, endY: 48, type: 'run' }
+  // Clean initial pitch (no stray dangling lines)
+  const [arrows, setArrows] = useState<TacticalArrow[]>([]);
+  const [isPlayingAnimation, setIsPlayingAnimation] = useState<boolean>(false);
+  const [balls, setBalls] = useState<Array<{ id: string; x: number; y: number }>>([
+    { id: 'ball-1', x: 50, y: 88 }
   ]);
 
   const playersMap = React.useMemo(() => {
@@ -38,6 +40,37 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp, onSelectP
 
   const handleAddArrow = (arrow: TacticalArrow) => {
     setArrows(prev => [...prev, arrow]);
+  };
+
+  const handleMultiBallMove = (ballId: string, x: number, y: number) => {
+    setBalls(prev => prev.map(b => b.id === ballId ? { ...b, x, y } : b));
+  };
+
+  const handlePlayDemoPass = () => {
+    if (!isPlayingAnimation) {
+      // Set up clean buildout pass from GK (#1) to CM (#3)
+      setArrows([
+        { id: 'demo-pass', startX: 50, startY: 88, endX: 50, endY: 48, type: 'pass' }
+      ]);
+      setIsPlayingAnimation(true);
+    } else {
+      setIsPlayingAnimation(false);
+    }
+  };
+
+  const handleResetDemo = () => {
+    setIsPlayingAnimation(false);
+    setArrows([]);
+    setBalls([{ id: 'ball-1', x: 50, y: 88 }]);
+    setNodes([
+      { id: 'd1', label: 'GK', role: 'GK', x: 50, y: 88, team: 'home', assignedPlayerId: 'p2' },
+      { id: 'd2', label: 'LCB', role: 'LB', x: 30, y: 72, team: 'home', assignedPlayerId: 'p4' },
+      { id: 'd3', label: 'RCB', role: 'RB', x: 70, y: 72, team: 'home', assignedPlayerId: 'p9' },
+      { id: 'd4', label: 'LM', role: 'LM', x: 20, y: 45, team: 'home', assignedPlayerId: 'p7' },
+      { id: 'd5', label: 'CM', role: 'CM', x: 50, y: 48, team: 'home', assignedPlayerId: 'p3' },
+      { id: 'd6', label: 'RM', role: 'RM', x: 80, y: 45, team: 'home', assignedPlayerId: 'p5' },
+      { id: 'd7', label: 'ST', role: 'ST', x: 50, y: 20, team: 'home', assignedPlayerId: 'p1' },
+    ]);
   };
 
   return (
@@ -113,9 +146,22 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp, onSelectP
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
               Live Interactive Pitch (2-3-1 Build-Out Shape)
             </span>
-            <span className="text-emerald-300 font-semibold bg-emerald-500/20 px-2 py-0.5 rounded text-[10px] border border-emerald-500/30">
-              ⚡ Drag players to test!
-            </span>
+            <div className="flex items-center space-x-2">
+              <button
+                onClick={handlePlayDemoPass}
+                className="px-2.5 py-1 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-[11px] rounded-lg transition flex items-center gap-1 shadow"
+              >
+                {isPlayingAnimation ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current" />}
+                <span>{isPlayingAnimation ? 'Pause' : '▶ Play Ball Motion'}</span>
+              </button>
+              <button
+                onClick={handleResetDemo}
+                className="p-1 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white rounded-lg border border-slate-800 transition"
+                title="Reset Pitch & Ball"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
 
           <PitchCanvas
@@ -124,6 +170,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp, onSelectP
             playersMap={playersMap}
             onNodeMove={handleNodeMove}
             onAddArrow={handleAddArrow}
+            isPlayingAnimation={isPlayingAnimation}
+            balls={balls}
+            onMultiBallMove={handleMultiBallMove}
           />
         </div>
       </section>
@@ -144,57 +193,54 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onLaunchApp, onSelectP
               <div className="text-3xl font-black text-white mt-4">$0 <span className="text-xs text-slate-400 font-normal">/ forever</span></div>
             </div>
 
-            <ul className="space-y-3 text-xs text-slate-300">
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Offline 2D Canvas Pitch Board</li>
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> 5v5, 7v7, 9v9, 11v11 Formations</li>
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Basic Roster Management</li>
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> WhatsApp Parent Share Output</li>
+            <ul className="space-y-3 text-xs text-slate-300 font-medium">
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Up to 22 Player Roster</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Interactive 2D Tactics Board</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Equal-Minutes Sub Matrix Engine</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Offline PWA Access</li>
             </ul>
 
             <button
               onClick={onLaunchApp}
-              className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl border border-slate-700 transition"
+              className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-xl transition"
             >
-              Launch Free App
+              Get Started Free
             </button>
           </div>
 
-          {/* AI Coach Pro Tier */}
-          <div className="glass-panel p-8 rounded-3xl space-y-6 border-2 border-emerald-500 relative shadow-2xl shadow-emerald-500/10">
-            <div className="absolute -top-3.5 right-6 px-3 py-1 bg-gradient-to-r from-emerald-500 to-teal-400 text-slate-950 text-[10px] font-black uppercase tracking-wider rounded-full shadow">
-              Most Popular
+          {/* Pro Tier */}
+          <div className="glass-panel p-8 rounded-3xl space-y-6 border-2 border-emerald-500/50 bg-emerald-950/20 relative">
+            <div className="absolute -top-3 right-6 px-3 py-1 bg-emerald-500 text-slate-950 font-black text-[10px] rounded-full uppercase tracking-wider">
+              Popular
             </div>
 
             <div>
               <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                AI Coach Pro <Sparkles className="w-4 h-4 text-amber-400" />
+                <Sparkles className="w-4 h-4 text-amber-400" /> AI Pro Tier
               </h3>
-              <p className="text-xs text-slate-400 mt-1">For serious coaches &amp; multi-team managers</p>
+              <p className="text-xs text-slate-400 mt-1">For travel, academy &amp; high school head coaches</p>
               <div className="text-3xl font-black text-white mt-4">$9.99 <span className="text-xs text-slate-400 font-normal">/ month</span></div>
             </div>
 
-            <ul className="space-y-3 text-xs text-slate-300">
-              <li className="flex items-center gap-2 font-semibold text-emerald-300"><Check className="w-4 h-4 text-emerald-400" /> Everything in Free</li>
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Unlimited Hands-Free AI Voice Assistant</li>
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Youth Build-Out &amp; High Press Style</li>
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Automated Fair Play Equal Minute Matrix</li>
-              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Firebase Multi-Team Cloud Sync</li>
+            <ul className="space-y-3 text-xs text-slate-300 font-medium">
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Unlimited Multi-Team Management</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Voice AI Pitch Assistant</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> GSAP Motion Animation Keyframes</li>
+              <li className="flex items-center gap-2"><Check className="w-4 h-4 text-emerald-400" /> Cloud Sync &amp; Assistant Coach Invites</li>
             </ul>
 
             <button
-              onClick={() => { onSelectProTier(); onLaunchApp(); }}
-              className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition flex items-center justify-center gap-2"
+              onClick={() => {
+                onSelectProTier();
+                onLaunchApp();
+              }}
+              className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-xl shadow-lg shadow-emerald-500/20 transition"
             >
-              <Zap className="w-4 h-4" /> Start AI Pro 14-Day Free Trial
+              Start 14-Day Pro Trial
             </button>
           </div>
         </div>
       </section>
-
-      {/* Footer */}
-      <footer className="border-t border-slate-900 py-8 text-center text-xs text-slate-500">
-        <p>&copy; {new Date().getFullYear()} TacticalSoccer AI. Created for @willhlaw.</p>
-      </footer>
     </div>
   );
 };
