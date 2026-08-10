@@ -10,6 +10,7 @@ import { PracticeHub } from './components/practice/PracticeHub';
 import { AICoachModal } from './components/ai/AICoachModal';
 import { LandingPage } from './components/landing/LandingPage';
 import { AuthModal } from './components/auth/AuthModal';
+import { PostSignupSetupModal } from './components/auth/PostSignupSetupModal';
 import { TeamSwitcher } from './components/team/TeamSwitcher';
 import { TeamInviteModal } from './components/team/TeamInviteModal';
 import { JoinTeamModal } from './components/team/JoinTeamModal';
@@ -30,6 +31,7 @@ export default function App() {
   const [authModalMode, setAuthModalMode] = useState<'signin' | 'signup'>('signin');
   const [isInviteModalOpen, setIsInviteModalOpen] = useState<boolean>(false);
   const [isJoinModalOpen, setIsJoinModalOpen] = useState<boolean>(false);
+  const [isPostSignupSetupOpen, setIsPostSignupSetupOpen] = useState<boolean>(false);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -56,11 +58,6 @@ export default function App() {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
       if (user) {
-        // Sync local guest work to cloud automatically upon auth
-        const localDrills = getLocalCustomDrills();
-        const localScenarios = getLocalScenarios();
-        await syncAllLocalToCloud(user, teams, localDrills, localScenarios);
-
         // Load user cloud teams
         const cloudTeams = await fetchUserTeams(user.uid);
         if (cloudTeams.length > 0) {
@@ -150,19 +147,55 @@ export default function App() {
   const handleAuthSuccess = async (user: User) => {
     setCurrentUser(user);
     setIsAuthModalOpen(false);
+    setIsPostSignupSetupOpen(true);
+  };
 
-    // Sync guest work to cloud
-    const localDrills = getLocalCustomDrills();
-    const localScenarios = getLocalScenarios();
-    await syncAllLocalToCloud(user, teams, localDrills, localScenarios);
+  const handleKeepDemoWork = async () => {
+    if (currentUser) {
+      const localDrills = getLocalCustomDrills();
+      const localScenarios = getLocalScenarios();
+      await syncAllLocalToCloud(currentUser, teams, localDrills, localScenarios);
 
-    const cloudTeams = await fetchUserTeams(user.uid);
-    if (cloudTeams.length > 0) {
-      setTeams(cloudTeams);
-      saveLocalTeams(cloudTeams);
-      setActiveTeamIdState(cloudTeams[0].id);
-      setActiveTeamId(cloudTeams[0].id);
+      const cloudTeams = await fetchUserTeams(currentUser.uid);
+      if (cloudTeams.length > 0) {
+        setTeams(cloudTeams);
+        saveLocalTeams(cloudTeams);
+        setActiveTeamIdState(cloudTeams[0].id);
+        setActiveTeamId(cloudTeams[0].id);
+      }
     }
+    setIsPostSignupSetupOpen(false);
+  };
+
+  const handleWipeDemoWork = async () => {
+    if (currentUser) {
+      const freshTeamId = 'team-' + Date.now();
+      const freshTeam: Team = {
+        id: freshTeamId,
+        name: `${currentUser.displayName || 'Coach'}'s Team`,
+        ageGroup: 'U11-U12',
+        format: '9v9',
+        playingStyle: 'youth-buildout',
+        ownerId: currentUser.uid,
+        inviteCode: generateInviteCode('My Team'),
+        members: [{
+          uid: currentUser.uid,
+          email: currentUser.email || '',
+          displayName: currentUser.displayName || 'Head Coach',
+          role: 'coach',
+          joinedAt: new Date().toISOString()
+        }],
+        roster: []
+      };
+
+      const freshTeams = [freshTeam];
+      setTeams(freshTeams);
+      saveLocalTeams(freshTeams);
+      setActiveTeamIdState(freshTeamId);
+      setActiveTeamId(freshTeamId);
+      await syncTeamToCloud(freshTeam, currentUser);
+    }
+    setIsPostSignupSetupOpen(false);
   };
 
   const handleFormatChange = (format: FormatType) => {
@@ -389,6 +422,16 @@ export default function App() {
           initialMode={authModalMode}
           onClose={() => setIsAuthModalOpen(false)}
           onAuthSuccess={handleAuthSuccess}
+        />
+      )}
+
+      {/* Post-Signup Setup Modal 🚀 */}
+      {isPostSignupSetupOpen && (
+        <PostSignupSetupModal
+          teamName={activeTeam.name}
+          playerCount={activeTeam.roster.length}
+          onKeepData={handleKeepDemoWork}
+          onStartFresh={handleWipeDemoWork}
         />
       )}
 
