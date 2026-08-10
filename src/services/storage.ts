@@ -249,3 +249,41 @@ export function getTacticsBoardFullscreenDefault(): boolean {
 export function setTacticsBoardFullscreenDefault(enabled: boolean): void {
   localStorage.setItem(FULLSCREEN_DEFAULT_KEY, enabled ? 'true' : 'false');
 }
+
+const PLAY_SEQUENCES_KEY = 'tactical_play_sequences_v1';
+
+export function getLocalPlaySequences(): any[] {
+  try {
+    const raw = localStorage.getItem(PLAY_SEQUENCES_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    console.error('Error reading play sequences:', e);
+    return [];
+  }
+}
+
+export function saveLocalPlaySequence(sequence: any): void {
+  try {
+    const current = getLocalPlaySequences();
+    const idx = current.findIndex((s: any) => s.id === sequence.id);
+    let updated;
+    if (idx >= 0) {
+      updated = current.map((s: any, i: number) => i === idx ? sequence : s);
+    } else {
+      updated = [sequence, ...current];
+    }
+    localStorage.setItem(PLAY_SEQUENCES_KEY, JSON.stringify(updated));
+  } catch (e) {
+    console.error('Error saving play sequence:', e);
+  }
+}
+
+export function deleteLocalPlaySequence(sequenceId: string): void {
+  try {
+    const current = getLocalPlaySequences();
+    const filtered = current.filter((s: any) => s.id !== sequenceId);
+    localStorage.setItem(PLAY_SEQUENCES_KEY, JSON.stringify(filtered));
+  } catch (e) {
+    console.error('Error deleting play sequence:', e);
+  }
+}

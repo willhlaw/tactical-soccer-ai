@@ -145,6 +145,15 @@ export interface TacticalKeyframe {
   cones: TacticalCone[];
 }
 
+export interface PlaySequence {
+  id: string;
+  title: string;
+  description?: string;
+  createdAt: string;
+  format: FormatType;
+  keyframes: TacticalKeyframe[];
+}
+
 export interface TacticalScenario {
   id: string;
   title: string;

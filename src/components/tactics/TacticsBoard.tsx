@@ -6,12 +6,21 @@ import { getLocalScenarios, saveLocalScenario, deleteLocalScenario, getTacticsBo
 import { SavedScenariosModal } from './SavedScenariosModal';
 import { AIScenarioGeneratorModal } from './AIScenarioGeneratorModal';
 import { AIScenarioResult } from '../../services/aiScenarioEngine';
-import { Play, Pause, RotateCcw, Trash2, Shield, Zap, Maximize2, Minimize2, PenTool, Users, Star, Plus, Minus, Target, Grid, Save, Folder, Check, X, Sparkles, Monitor, Film, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Play, Pause, RotateCcw, Trash2, Shield, Zap, Maximize2, Minimize2, PenTool, Users, Star, Plus, Minus, Target, Grid, Save, Folder, Check, X, Sparkles, Monitor, Film, ChevronLeft, ChevronRight, Undo2, Redo2, Share2, Link, Copy } from 'lucide-react';
 
 interface TacticsBoardProps {
   team: Team;
   onUpdateTeam?: (updatedTeam: Team) => void;
   onUpdateFormation?: (formation: FormationPreset) => void;
+}
+
+interface BoardStateSnapshot {
+  nodes: PitchNode[];
+  awayNodes: PitchNode[];
+  thirdNodes: PitchNode[];
+  balls: Array<{ id: string; x: number; y: number }>;
+  arrows: TacticalArrow[];
+  cones: TacticalCone[];
 }
 
 export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, onUpdateFormation }) => {
@@ -52,6 +61,11 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
   const [activeKeyframeIndex, setActiveKeyframeIndex] = useState<number>(0);
   const [timelineProgress, setTimelineProgress] = useState<number>(0);
 
+  // Undo / Redo History Stack ↩️ ↪️
+  const [historyPast, setHistoryPast] = useState<BoardStateSnapshot[]>([]);
+  const [historyFuture, setHistoryFuture] = useState<BoardStateSnapshot[]>([]);
+  const [shareLinkCopied, setShareLinkCopied] = useState<boolean>(false);
+
   // Saved Scenarios State 📁 & AI Generator State ✨
   const [scenarios, setScenarios] = useState<TacticalScenario[]>(() => getLocalScenarios());
   const [isSaveModalOpen, setIsSaveModalOpen] = useState<boolean>(false);
@@ -64,24 +78,6 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
   // Default Fullscreen Setting State 🖥️
   const [alwaysFullscreen, setAlwaysFullscreen] = useState<boolean>(() => getTacticsBoardFullscreenDefault());
   const [isFullscreen, setIsFullscreen] = useState<boolean>(() => getTacticsBoardFullscreenDefault());
-
-  // Bulletproof Exit Fullscreen Function (Guarantees user can always exit)
-  const handleExitFullscreen = () => {
-    setIsFullscreen(false);
-    setAlwaysFullscreen(false);
-    setTacticsBoardFullscreenDefault(false);
-  };
-
-  // Keyboard Escape Key Listener for Exit Fullscreen ⌨️
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' || e.key === 'Esc') {
-        handleExitFullscreen();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
 
   // Initialize home pitch nodes
   const [nodes, setNodes] = useState<PitchNode[]>(() => {
@@ -118,6 +114,110 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
   const [arrowType, setArrowType] = useState<'pass' | 'run' | 'dribble' | 'shot'>('pass');
   const [isPlayingAnimation, setIsPlayingAnimation] = useState(false);
 
+  // Take snapshot of current board state before mutation for Undo/Redo
+  const saveStateSnapshot = () => {
+    const snapshot: BoardStateSnapshot = {
+      nodes: JSON.parse(JSON.stringify(nodes)),
+      awayNodes: JSON.parse(JSON.stringify(awayNodes)),
+      thirdNodes: JSON.parse(JSON.stringify(thirdNodes)),
+      balls: JSON.parse(JSON.stringify(balls)),
+      arrows: JSON.parse(JSON.stringify(arrows)),
+      cones: JSON.parse(JSON.stringify(cones))
+    };
+    setHistoryPast(prev => [...prev.slice(-30), snapshot]);
+    setHistoryFuture([]);
+  };
+
+  const handleUndo = () => {
+    if (historyPast.length === 0) return;
+    const previous = historyPast[historyPast.length - 1];
+    const currentSnapshot: BoardStateSnapshot = {
+      nodes: JSON.parse(JSON.stringify(nodes)),
+      awayNodes: JSON.parse(JSON.stringify(awayNodes)),
+      thirdNodes: JSON.parse(JSON.stringify(thirdNodes)),
+      balls: JSON.parse(JSON.stringify(balls)),
+      arrows: JSON.parse(JSON.stringify(arrows)),
+      cones: JSON.parse(JSON.stringify(cones))
+    };
+
+    setHistoryFuture(prev => [currentSnapshot, ...prev]);
+    setHistoryPast(prev => prev.slice(0, prev.length - 1));
+
+    setNodes(previous.nodes);
+    setAwayNodes(previous.awayNodes);
+    setThirdNodes(previous.thirdNodes);
+    setBalls(previous.balls);
+    setArrows(previous.arrows);
+    setCones(previous.cones);
+  };
+
+  const handleRedo = () => {
+    if (historyFuture.length === 0) return;
+    const next = historyFuture[0];
+    const currentSnapshot: BoardStateSnapshot = {
+      nodes: JSON.parse(JSON.stringify(nodes)),
+      awayNodes: JSON.parse(JSON.stringify(awayNodes)),
+      thirdNodes: JSON.parse(JSON.stringify(thirdNodes)),
+      balls: JSON.parse(JSON.stringify(balls)),
+      arrows: JSON.parse(JSON.stringify(arrows)),
+      cones: JSON.parse(JSON.stringify(cones))
+    };
+
+    setHistoryPast(prev => [...prev, currentSnapshot]);
+    setHistoryFuture(prev => prev.slice(1));
+
+    setNodes(next.nodes);
+    setAwayNodes(next.awayNodes);
+    setThirdNodes(next.thirdNodes);
+    setBalls(next.balls);
+    setArrows(next.arrows);
+    setCones(next.cones);
+  };
+
+  // Keyboard Shortcuts Listener (Ctrl+Z for Undo, Ctrl+Y for Redo, Esc for Exit Fullscreen) ⌨️
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' || e.key === 'Esc') {
+        setIsFullscreen(false);
+        setAlwaysFullscreen(false);
+        setTacticsBoardFullscreenDefault(false);
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+        if (e.shiftKey) handleRedo();
+        else handleUndo();
+      } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+        handleRedo();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [historyPast, historyFuture]);
+
+  // Generate 1-Click Shareable Play Link 🔗
+  const handleSharePlayLink = () => {
+    const playData = {
+      title: scenarioTitleInput || `${selectedFormation.name} Play Sequence`,
+      format: team.format,
+      nodes,
+      awayNodes,
+      thirdNodes,
+      balls,
+      arrows,
+      cones,
+      keyframes
+    };
+    const encoded = encodeURIComponent(btoa(JSON.stringify(playData)));
+    const shareUrl = `${window.location.origin}/?play=${encoded}`;
+    navigator.clipboard.writeText(shareUrl);
+    setShareLinkCopied(true);
+    setTimeout(() => setShareLinkCopied(false), 2500);
+  };
+
+  const handleExitFullscreen = () => {
+    setIsFullscreen(false);
+    setAlwaysFullscreen(false);
+    setTacticsBoardFullscreenDefault(false);
+  };
+
   // Fullscreen Preference Setting Handler 🖥️
   const handleToggleAlwaysFullscreen = () => {
     const next = !alwaysFullscreen;
@@ -132,6 +232,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
 
   // Multi-Ball Handlers ⚽
   const handleUpdateBallCount = (delta: number) => {
+    saveStateSnapshot();
     setBalls(prev => {
       const currentCount = prev.length;
       const targetCount = Math.max(1, Math.min(10, currentCount + delta));
@@ -161,6 +262,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
 
   // Keyframe Sequence Timeline Handlers 🎬
   const handleAddKeyframe = () => {
+    saveStateSnapshot();
     const nextTimestamp = (keyframes.length + 1) * 2.0;
     const newFrame: TacticalKeyframe = {
       id: 'kf-' + Date.now(),
@@ -176,6 +278,14 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
 
     setKeyframes(prev => [...prev, newFrame]);
     setActiveKeyframeIndex(keyframes.length);
+  };
+
+  const handleDeleteKeyframe = (index: number) => {
+    if (keyframes.length === 0) return;
+    saveStateSnapshot();
+    const updated = keyframes.filter((_, i) => i !== index);
+    setKeyframes(updated);
+    setActiveKeyframeIndex(Math.max(0, index - 1));
   };
 
   const handleSelectKeyframe = (index: number) => {
@@ -194,6 +304,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
 
   // AI Scenario Generator Handler ✨
   const handleApplyAIScenario = (aiSc: AIScenarioResult) => {
+    saveStateSnapshot();
     setIsDrillMode(aiSc.isDrillMode);
     setHomeCount(aiSc.homeCount);
     setAwayCount(aiSc.awayCount);
@@ -276,6 +387,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
 
   // Cone Handlers 🔶
   const handleAddCone = (cone: TacticalCone) => {
+    saveStateSnapshot();
     setCones(prev => [...prev, cone]);
   };
 
@@ -284,10 +396,12 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
   };
 
   const handleDeleteCone = (coneId: string) => {
+    saveStateSnapshot();
     setCones(prev => prev.filter(c => c.id !== coneId));
   };
 
   const handleApplyBoxGrid = () => {
+    saveStateSnapshot();
     setCones([
       { id: 'c-top-left', x: 25, y: 25, color: coneColor },
       { id: 'c-top-right', x: 75, y: 25, color: coneColor },
@@ -297,6 +411,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
   };
 
   const handleApplyGatesGrid = () => {
+    saveStateSnapshot();
     setCones([
       { id: 'g1-left', x: 20, y: 35, color: 'yellow' },
       { id: 'g1-right', x: 20, y: 45, color: 'yellow' },
@@ -306,6 +421,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
   };
 
   const handleClearCones = () => {
+    saveStateSnapshot();
     setCones([]);
   };
 
@@ -352,6 +468,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
   };
 
   const handleLoadScenario = (sc: TacticalScenario) => {
+    saveStateSnapshot();
     setIsDrillMode(sc.isDrillMode);
     if (sc.isDrillMode) {
       setHomeCount(sc.homeCount || 3);
@@ -423,6 +540,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
   }, [team.roster]);
 
   const handleSelectFormation = (f: FormationPreset) => {
+    saveStateSnapshot();
     setIsDrillMode(false);
     setSelectedFormation(f);
     localStorage.setItem(`tactical_last_formation_${team.id}_${team.format}`, f.id);
@@ -450,6 +568,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
   };
 
   const handleApplyDrillPreset = (hCount: number, aCount: number, tCount = 0) => {
+    saveStateSnapshot();
     setIsDrillMode(true);
     setHomeCount(hCount);
     setAwayCount(aCount);
@@ -458,6 +577,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
   };
 
   const handleUpdateHomeCount = (delta: number) => {
+    saveStateSnapshot();
     const next = Math.max(1, Math.min(11, homeCount + delta));
     setHomeCount(next);
     setIsDrillMode(true);
@@ -465,6 +585,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
   };
 
   const handleUpdateAwayCount = (delta: number) => {
+    saveStateSnapshot();
     const next = Math.max(0, Math.min(11, awayCount + delta));
     setAwayCount(next);
     setIsDrillMode(true);
@@ -472,6 +593,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
   };
 
   const handleUpdateThirdCount = (delta: number) => {
+    saveStateSnapshot();
     const next = Math.max(0, Math.min(11, thirdCount + delta));
     setThirdCount(next);
     setIsDrillMode(true);
@@ -491,10 +613,12 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
   };
 
   const handleAddArrow = (arrow: TacticalArrow) => {
+    saveStateSnapshot();
     setArrows(prev => [...prev, arrow]);
   };
 
   const handleResetBoard = () => {
+    saveStateSnapshot();
     setIsPlayingAnimation(false);
     setArrows([]);
     setBalls(prev => prev.map((b, idx) => ({
@@ -519,6 +643,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
   };
 
   const handleClearLines = () => {
+    saveStateSnapshot();
     setArrows([]);
   };
 
@@ -768,6 +893,15 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
           </div>
 
           <button
+            onClick={handleSharePlayLink}
+            className="px-3.5 py-2.5 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-black text-xs rounded-xl transition flex items-center gap-1.5 shadow-lg shadow-cyan-500/20 active:scale-95"
+            title="Generate 1-Click Shareable Play Link for Assistant Coaches & Parents"
+          >
+            {shareLinkCopied ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
+            <span>{shareLinkCopied ? 'Link Copied!' : '🔗 Share Play'}</span>
+          </button>
+
+          <button
             onClick={handleOpenSaveModal}
             className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-xl transition flex items-center gap-1.5 shadow-lg shadow-emerald-500/20 active:scale-95"
           >
@@ -818,25 +952,33 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
         </div>
       </div>
 
-      {/* KEYFRAME SEQUENCE TIMELINE CONTROL BAR 🎬 */}
+      {/* KEYFRAME SEQUENCE TIMELINE CONTROL BAR 🎬 WITH UNDO / REDO ↩️ ↪️ */}
       <div className="glass-panel p-4 rounded-2xl flex flex-wrap items-center justify-between gap-4 border-2 border-cyan-500/30 bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 shadow-xl">
-        <div className="flex items-center space-x-3">
-          <div className="p-2 bg-cyan-500/20 text-cyan-400 rounded-xl border border-cyan-500/30">
-            <Film className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="text-xs font-black text-white flex items-center gap-2">
-              Time Sequence Keyframe Timeline
-              <span className="px-2 py-0.5 bg-cyan-500/20 text-cyan-300 text-[10px] rounded-full border border-cyan-500/30 font-bold">
-                {keyframes.length} Keyframes
-              </span>
-            </h3>
-            <p className="text-[11px] text-slate-400">Move players/ball, draw vectors, then add time sequence keyframes to demonstrate movement over time</p>
-          </div>
+        {/* Undo & Redo Action Controls ↩️ ↪️ */}
+        <div className="flex items-center space-x-2 bg-slate-900 p-1.5 rounded-2xl border border-slate-800">
+          <button
+            onClick={handleUndo}
+            disabled={historyPast.length === 0}
+            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-slate-200 font-bold text-xs rounded-xl flex items-center gap-1 transition active:scale-95"
+            title="Undo Last Action (Ctrl+Z)"
+          >
+            <Undo2 className="w-4 h-4 text-cyan-400" />
+            <span>Undo</span>
+          </button>
+
+          <button
+            onClick={handleRedo}
+            disabled={historyFuture.length === 0}
+            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-30 text-slate-200 font-bold text-xs rounded-xl flex items-center gap-1 transition active:scale-95"
+            title="Redo Action (Ctrl+Y)"
+          >
+            <Redo2 className="w-4 h-4 text-cyan-400" />
+            <span>Redo</span>
+          </button>
         </div>
 
+        {/* Timeline Sequence Pill Badges & Add Step */}
         <div className="flex flex-wrap items-center gap-3">
-          {/* Keyframe Sequence Pills */}
           <div className="flex items-center space-x-1.5 overflow-x-auto">
             {keyframes.map((kf, index) => (
               <button
@@ -860,6 +1002,16 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
             <Plus className="w-4 h-4" />
             <span>➕ Add Time Sequence (+ Keyframe)</span>
           </button>
+
+          {keyframes.length > 0 && (
+            <button
+              onClick={() => handleDeleteKeyframe(activeKeyframeIndex)}
+              className="p-2 bg-slate-900 hover:bg-red-500/20 text-slate-400 hover:text-red-400 rounded-xl border border-slate-800 transition"
+              title="Delete Active Sequence Step"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -1139,7 +1291,7 @@ export const TacticsBoard: React.FC<TacticsBoardProps> = ({ team, onUpdateTeam, 
                     ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 ring-4 ring-amber-500/30 animate-pulse'
                     : 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 ring-4 ring-emerald-500/30 scale-105'
                 }`}
-                title={isPlayingAnimation ? "Pause Sequence Animation" : "Play GSAP Motion Animation"}
+                title={isPlayingAnimation ? "Pause Sequence Animation & Freeze Screen" : "Play GSAP Motion Animation"}
               >
                 {isPlayingAnimation ? <Pause className="w-7 h-7 fill-current" /> : <Play className="w-7 h-7 fill-current ml-0.5" />}
               </button>

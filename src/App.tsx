@@ -52,6 +52,9 @@ export default function App() {
     } else if (params.get('drill')) {
       setCurrentView('app');
       setActiveTab('practice');
+    } else if (params.get('play')) {
+      setCurrentView('app');
+      setActiveTab('tactics');
     }
 
     // Firebase Auth Listener
