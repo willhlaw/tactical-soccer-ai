@@ -16,7 +16,7 @@ import { Team, TeamRole, TeamMember, UserProfile } from '../types';
 
 // Google Firebase Configuration for tactical-soccer-ai-app
 export const firebaseConfig = {
-  apiKey: "AIzaSyDummyKeyForTestingPurposes12345",
+  apiKey: "AIzaSyC_zfDEbSana8A0hM3oxbhDh3xCcvKn1qE",
   projectId: "tactical-soccer-ai-app",
   authDomain: "tactical-soccer-ai-app.firebaseapp.com",
   storageBucket: "tactical-soccer-ai-app.appspot.com",
