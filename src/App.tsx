@@ -27,6 +27,7 @@ export default function App() {
   // Firebase Auth & Modal States 🔐
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [authModalMode, setAuthModalMode] = useState<'signin' | 'signup'>('signin');
   const [isInviteModalOpen, setIsInviteModalOpen] = useState<boolean>(false);
   const [isJoinModalOpen, setIsJoinModalOpen] = useState<boolean>(false);
 
@@ -254,13 +255,27 @@ export default function App() {
                 </button>
               </div>
             ) : (
-              <button
-                onClick={() => setIsAuthModalOpen(true)}
-                className="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-xl flex items-center gap-1.5 shadow-md shadow-emerald-500/20 active:scale-95 transition"
-              >
-                <Cloud className="w-4 h-4" />
-                <span className="hidden sm:inline">Sign In / Sync</span>
-              </button>
+              <div className="flex items-center space-x-2">
+                <button
+                  onClick={() => {
+                    setAuthModalMode('signin');
+                    setIsAuthModalOpen(true);
+                  }}
+                  className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-slate-200 hover:text-white font-bold text-xs rounded-xl border border-slate-700 transition"
+                >
+                  Sign In
+                </button>
+                <button
+                  onClick={() => {
+                    setAuthModalMode('signup');
+                    setIsAuthModalOpen(true);
+                  }}
+                  className="px-3.5 py-1.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs rounded-xl flex items-center gap-1 shadow-md shadow-emerald-500/20 active:scale-95 transition"
+                >
+                  <Cloud className="w-3.5 h-3.5" />
+                  <span>Sign Up</span>
+                </button>
+              </div>
             )}
 
             {/* Sync Badge */}
@@ -371,6 +386,7 @@ export default function App() {
       {/* Auth Modal 🔐 */}
       {isAuthModalOpen && (
         <AuthModal
+          initialMode={authModalMode}
           onClose={() => setIsAuthModalOpen(false)}
           onAuthSuccess={handleAuthSuccess}
         />

@@ -4,12 +4,13 @@ import { User } from 'firebase/auth';
 import { X, Sparkles, LogIn, UserPlus, Mail, Lock, User as UserIcon, ShieldAlert } from 'lucide-react';
 
 interface AuthModalProps {
+  initialMode?: 'signin' | 'signup';
   onClose: () => void;
   onAuthSuccess: (user: User) => void;
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ onClose, onAuthSuccess }) => {
-  const [isSignUp, setIsSignUp] = useState<boolean>(false);
+export const AuthModal: React.FC<AuthModalProps> = ({ initialMode = 'signin', onClose, onAuthSuccess }) => {
+  const [isSignUp, setIsSignUp] = useState<boolean>(initialMode === 'signup');
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [displayName, setDisplayName] = useState<string>('');
