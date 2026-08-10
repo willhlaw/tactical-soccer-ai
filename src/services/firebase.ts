@@ -81,21 +81,27 @@ export async function logoutUser(): Promise<void> {
  * Ensure User Profile Document in Firestore
  */
 export async function ensureUserProfile(user: User, fallbackName?: string): Promise<UserProfile> {
-  const userRef = doc(db, 'users', user.uid);
-  const snap = await getDoc(userRef);
+  const profile: UserProfile = {
+    uid: user.uid,
+    email: user.email || '',
+    displayName: user.displayName || fallbackName || user.email?.split('@')[0] || 'Coach',
+    photoURL: user.photoURL || undefined,
+    teamIds: [],
+    activeTeamId: ''
+  };
 
-  if (snap.exists()) {
-    return snap.data() as UserProfile;
-  } else {
-    const profile: UserProfile = {
-      uid: user.uid,
-      email: user.email || '',
-      displayName: user.displayName || fallbackName || user.email?.split('@')[0] || 'Coach',
-      photoURL: user.photoURL || undefined,
-      teamIds: [],
-      activeTeamId: ''
-    };
-    await setDoc(userRef, profile);
+  try {
+    const userRef = doc(db, 'users', user.uid);
+    const snap = await getDoc(userRef);
+
+    if (snap.exists()) {
+      return snap.data() as UserProfile;
+    } else {
+      await setDoc(userRef, profile).catch(e => console.warn('User profile sync fallback:', e));
+      return profile;
+    }
+  } catch (e) {
+    console.warn('Profile fetch fallback active:', e);
     return profile;
   }
 }

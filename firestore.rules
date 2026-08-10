@@ -1,0 +1,27 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // User Profiles & User Subcollections (Scenarios, Custom Drills, Preferences)
+    match /users/{userId} {
+      allow read, write: if request.auth != null;
+      
+      match /{allSubcollections=**} {
+        allow read, write: if request.auth != null;
+      }
+    }
+
+    // Teams Collection (Allow authenticated coaches & team members to read/write team data)
+    match /teams/{teamId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null;
+    }
+
+    // Custom Drills Library
+    match /drills/{drillId} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}
